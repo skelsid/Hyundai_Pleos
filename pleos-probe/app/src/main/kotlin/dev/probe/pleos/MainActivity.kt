@@ -115,11 +115,15 @@ class MainActivity : Activity() {
 
     private fun probeAll() {
         // SDK 가 퍼미션 부족 등으로 동기 예외를 던지므로, 하나가 실패해도 나머지는 확인하도록 따로 감싼다
-        runProbe("vehicle", ::probeVehicle)
-        runProbe("location", ::probeLocation)
-        runProbe("tts", ::probeTts)
-        runProbe("stt", ::probeStt)
-        runProbe("navi", ::probeNavi)
+        // 실험용: adb shell am start ... --es skip stt,navi 로 일부 프로브를 뺀다(서로 간섭하는지 확인)
+        val skip = intent.getStringExtra(EXTRA_SKIP)?.split(',')?.toSet().orEmpty()
+        listOf(
+            "vehicle" to ::probeVehicle,
+            "location" to ::probeLocation,
+            "tts" to ::probeTts,
+            "stt" to ::probeStt,
+            "navi" to ::probeNavi,
+        ).filterNot { it.first in skip }.forEach { (name, probe) -> runProbe(name, probe) }
     }
 
     private fun probeStt() {
@@ -191,8 +195,9 @@ class MainActivity : Activity() {
                 report("tts.init", "ok")
                 tts.addEventListener(ttsListener)
                 tts.setLocale(SPEECH_LOCALE)
-                // 초기화 직후 바로 speak 하면 서비스에 전달되지 않았다(실측). 로케일 반영 뒤로 미룬다
-                mainHandler.postDelayed({ tts.speak(TTS_TEST_TEXT, false) }, TTS_SPEAK_DELAY_MS)
+                // 두 번째 인자는 스트리밍의 마지막 조각 여부다. false 면 SDK 가 텍스트를 쌓아만 두고 서비스로 보내지 않는다
+                // (OnDeviceStreamTts.doSpeak 바이트코드). 한 문장을 바로 읽히려면 true
+                mainHandler.postDelayed({ tts.speak(TTS_TEST_TEXT, true) }, TTS_SPEAK_DELAY_MS)
             }
 
             override fun onFailure(error: ErrorType) = report("tts.init.error", error.toString())
@@ -234,6 +239,7 @@ class MainActivity : Activity() {
         // Locale.KOREAN("ko")은 엔진이 "unsupported locale: ko-" 로 거부한다. 국가까지 지정해야 한다
         val SPEECH_LOCALE: Locale = Locale.KOREA
         const val EXTRA_STT_LOCALE = "stt_locale"
+        const val EXTRA_SKIP = "skip"
         const val TTS_SPEAK_DELAY_MS = 1_000L
     }
 }

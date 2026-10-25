@@ -1,3 +1,6 @@
 # 셸 스크립트와 훅은 LF 로 고정 (CRLF 면 Linux CI 에서 깨진다)
 *.sh text eol=lf
 .githooks/* text eol=lf
+# Gradle wrapper 도 같은 이유. .bat 은 Windows 용이라 CRLF
+gradlew text eol=lf
+*.bat text eol=crlf

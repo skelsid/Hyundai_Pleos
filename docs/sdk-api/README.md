@@ -48,17 +48,20 @@ AAR 매니페스트와 바이트코드 안의 퍼미션 문자열에서 찾았�
 
 ### FusedLocation
 - `isSupported`, `getLastKnownLocation`, `registerFusedLocationCallback`.
-- 실측: 응답했지만 좌표가 37.42, -122.08(에뮬레이터 기본값)이다. **NaviHelper 위치와 소스가 다르다.**
+- 실측: 에뮬레이터 GPS 를 따른다(기본값 37.42, -122.08). `adb emu geo fix <경도> <위도>` 로 바꾸면 바로 반영된다.
+- **NaviHelper 는 이 GPS 를 따르지 않는다.** 내비 엔진이 자체 위치(성남 수정구 37.4127, 127.0947)를 쓴다. 둘을 맞추려면 `adb emu geo fix 127.094681 37.4127212`.
 
 ### TextToSpeech
 - 모드: `HYBRID` / `SERVER` / `ON_DEVICE`. 서버 모드는 `registerApp(clientId, clientSecret)` 이 필요하다(Playground 계정 발급).
-- 실측: ON_DEVICE `initialize()` 는 성공했다. **`speak()` 는 발화가 확인되지 않았다.** start/done/error 이벤트가 오지 않았고 서비스 로그에도 호출이 남지 않았다. 서비스 쪽에 `dev.probe.pleos not found check register` 가 찍힌다. 원인 미확인.
+- **`speak(text, isFinal)` 의 두 번째 인자는 스트리밍의 마지막 조각 여부다.** `false` 면 텍스트를 쌓아만 두고 읽지 않는다. 한 문장을 바로 읽히려면 `true`. 서비스는 앱별로 쌓아 두므로 `false` 로 보낸 문장은 다음 `true` 때 한꺼번에 읽힌다.
+- **STT 가 인식 중이면 TTS 는 서비스에 전달은 되지만 재생되지 않는다.** STT 를 끝낸 뒤 말하게 해야 한다.
+- 실측: 위 두 가지를 지키면 ON_DEVICE 로 재생되고 `onStart` → `onDone` 이 온다.
 
 ### SpeechToText
 - `request()`, `stop()`, `sendAudio(byte[])`, `completeAudioSend()`, `setLocale`, `registerApp`. `getCallApi`, `getAmbientAi` 도 있다(용도 미확인).
-- 실측: ON_DEVICE 초기화 후 `ready` 까지 왔다. 마이크 입력이 없어 인식 텍스트는 확인하지 못했다.
+- 실측: ON_DEVICE 초기화 후 `ready` 까지 왔고 서비스가 에뮬레이터 마이크로 녹음·인식을 돌린다. 말소리를 넣어 본 적은 없어 인식 텍스트는 확인하지 못했다.
 
 ## 문서와 다른 점, 주의
 
 - 로케일은 `Locale.KOREA`(ko-KR)로 줘야 한다. `Locale.KOREAN`(ko)은 엔진이 `unsupported locale: ko-` 로 거부한다.
-- 에뮬레이터의 차량 HAL 일부가 계속 재시작해서 Virtual Console 로 기어·차속을 바꿀 수 없었다(`emulator_inactive`). 주최 측 문의 대상.
+- Virtual Console 로 기어·차속을 바꿀 수 없다(`emulator_inactive`, `bridge_ready=false`). 로그상 SELinux 가 `icvi-service` 실행을 막아(`avc: denied { execute } ... icvi_exec`) 재시작이 반복되고, 차량 HAL 은 `SecureStorageError: Connection refused` 를 낸다. user 빌드라 `-selinux permissive` 도 무시된다(실측). 이미지 결함으로 보이며 주최 측 문의 대상.

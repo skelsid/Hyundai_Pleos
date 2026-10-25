@@ -14,7 +14,7 @@ SDK 공개 API 정리는 `../docs/sdk-api/README.md` 에 있다.
 export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"
 ./gradlew.bat assembleDebug
 adb install -r -g app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n dev.probe.pleos/.MainActivity
+adb shell am start -n dev.probe.pleos/.MainActivity            # --es skip stt,navi 로 일부 프로브 제외
 adb logcat -s PleosProbe:I
 ```
 
@@ -30,6 +30,6 @@ adb logcat -s PleosProbe:I
 - 문서에 없는 `pleos.car.permission.STT_SERVICE` 도 필요하다(SpeechToText AAR 바이트코드에서 확인). NaviHelper 는 `NAVI_ROUTE`·`NAVI_ROUTE_SEARCH` 로 조회가 됐다.
 - TTS·STT 로케일은 `Locale.KOREA` 로 준다. `Locale.KOREAN` 은 `unsupported locale: ko-` 로 거부된다(STT 는 `ON_DEVICE_ENGINE_ERROR`).
 - STT 는 `ready` 까지 온다. 에뮬레이터에 마이크 입력이 없어 인식 텍스트는 확인 못 했다.
-- TTS 는 초기화만 성공했다. `speak()` 를 1초 늦춰 불러도 발화·이벤트가 없고, 서비스 로그에 `dev.probe.pleos not found check register` 가 찍힌다. 원인 미확인.
-- NaviHelper 현재 위치(성남 수정구)와 FusedLocation 위치(37.42, -122.08 기본값)가 다르다. 위치 소스가 서로 다르다.
-- 차량 HAL 일부가 재시작을 반복해 Virtual Console 이 `emulator_inactive` 를 돌려준다. 그래서 기어·차속 변경은 아직 못 해 봤다.
+- TTS `speak(text, isFinal)` 은 `isFinal=true` 여야 읽는다. `false` 면 쌓아만 둔다. 또 STT 가 인식 중이면 재생되지 않는다. `--es skip stt` 로 STT 를 빼고 돌리면 `tts.state=start` → `done` 이 온다.
+- FusedLocation 은 `adb emu geo fix` 를 따르지만 NaviHelper 는 따르지 않는다(자체 위치 성남 수정구). 맞추려면 `adb emu geo fix 127.094681 37.4127212`.
+- SELinux 가 `icvi-service` 실행을 막아 차량 HAL 이 제대로 못 뜨고, Virtual Console 이 `emulator_inactive` 를 돌려준다. user 빌드라 우회 불가. 기어·차속 변경은 못 해 봤다.
