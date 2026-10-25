@@ -38,3 +38,6 @@ desktop.ini
 # 로그
 *.log
 logs/
+
+# 개인별 금지어 목록 — 실명·학교 등이라 커밋하지 않는다
+.privacy-blocklist

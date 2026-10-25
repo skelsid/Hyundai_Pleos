@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# 커밋 전에 작성자 이메일과 추가한 줄의 개인정보를 검사한다.
+exec bash "$(git rev-parse --show-toplevel)/scripts/check-privacy.sh" --staged

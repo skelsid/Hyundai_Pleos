@@ -1,0 +1,12 @@
+name: 개인정보 점검
+on:
+  push:
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+      - run: bash scripts/check-privacy.sh --history
