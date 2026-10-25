@@ -1,0 +1,38 @@
+# 비밀값 — 절대 커밋하지 않는다 (Pleos Client ID/Secret, 서명 키 등)
+local.properties
+.env
+.env.*
+secrets.properties
+*.jks
+*.keystore
+keystore.properties
+google-services.json
+
+# Gradle / 빌드 산출물
+.gradle/
+build/
+*/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# APK/AAB는 GitHub Releases로 올린다
+*.apk
+*.aab
+*.ap_
+output-metadata.json
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.kotlin/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 로그
+*.log
+logs/
