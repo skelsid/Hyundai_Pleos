@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature
+        android:name="android.hardware.type.automotive"
+        android:required="true" />
+
+    <!-- 조회(get)용 퍼미션만 선언. 제어(CONTROL_*)는 App Market 사전 승인 대상이라 넣지 않는다 -->
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
+    <uses-permission android:name="pleos.car.permission.CAR_ENERGY" />
+    <uses-permission android:name="pleos.car.permission.FUSED_LOCATION" />
+    <!-- 문서엔 없지만 TextToSpeech.initialize() 가 이 퍼미션 없으면 SecurityException 을 던진다 (에뮬레이터 v2.1.0 실측) -->
+    <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
+    <!-- STT 도 같은 방식의 숨은 퍼미션 (SpeechToText AAR 바이트코드에서 확인) -->
+    <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- NaviHelper 조회·경로 요청용. NAVI_CUSTOM_* 는 용도가 문서에 없어 넣지 않는다 -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
+
+    <application
+        android:label="Pleos Probe"
+        android:supportsRtl="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <!-- AAOS 는 이 표시가 없는 화면을 주행 중에 막는다. 주행 중 동작 여부 확인용 -->
+            <meta-data
+                android:name="distractionOptimized"
+                android:value="true" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

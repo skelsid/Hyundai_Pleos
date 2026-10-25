@@ -1,0 +1,78 @@
+# fusedlocation 공개 API (AAR 에서 javap 로 추출, 난독화·내부 패키지 제외)
+# 원본: FusedLocation:1.1.3
+
+## FusedLocation 매니페스트 퍼미션
+uses-permission android:name="ai.pleos.playground.service.location.fused.FUSED_LOCATION_BINDING"
+
+## FusedLocation 클래스
+public final class location.fused.FusedLocation {
+  public location.fused.FusedLocation(android.content.Context);
+  public final void initialize();
+  public final void release();
+  public final boolean isSupported();
+  public final void getLastKnownLocation(location.fused.listener.FusedLocationListener);
+  public final void registerFusedLocationCallback(location.fused.listener.FusedLocationListener);
+  public final void unregisterFusedLocationCallback(location.fused.listener.FusedLocationListener);
+  public final void addProximityAlert(location.fused.model.ProximityAlertRequest, location.fused.listener.ProximityAlertListener);
+  public final void removeProximityAlert(String);
+  public final void showLocationAccessBlockedPopup();
+}
+public final class location.fused.constant.Constants {
+  public static final location.fused.constant.Constants INSTANCE;
+  public static final String SERVICE_PACKAGE_NAME = "service.location.fused";
+  public static final String SERVICE_NAME = "service.location.fused.FusedLocationService";
+  public static final String ACTION = "service.location.fused.FUSED_LOCATION_START";
+}
+public interface location.fused.listener.FusedLocationListener {
+  public abstract void onChanged(location.fused.model.LocationData);
+  public abstract void onError(Exception);
+}
+public interface location.fused.listener.ProximityAlertListener {
+  public abstract void onRegistered(String);
+  public abstract void onTransition(location.fused.model.ProximityAlertEvent);
+  public abstract void onError(Exception);
+}
+public final class location.fused.model.LocationData {
+  public location.fused.model.LocationData(double, double, double, float, float, long);
+  public final double getLatitude();
+  public final double getLongitude();
+  public final double getAltitude();
+  public final float getHeading();
+  public final float getConfidence();
+  public final long getTimestampMillis();
+  public String toString();
+  public int hashCode();
+  public boolean equals(Object);
+}
+public final class location.fused.model.ProximityAlertEvent {
+  public location.fused.model.ProximityAlertEvent(String, location.fused.model.ProximityTransition);
+  public final String getAlertId();
+  public final location.fused.model.ProximityTransition getTransition();
+  public String toString();
+  public int hashCode();
+  public boolean equals(Object);
+}
+public final class location.fused.model.ProximityAlertRequest {
+  public location.fused.model.ProximityAlertRequest(double, double, float, java.util.Set<? extends location.fused.model.ProximityTransition>);
+  public final double getLatitude();
+  public final double getLongitude();
+  public final float getRadiusMeters();
+  public final java.util.Set<location.fused.model.ProximityTransition> getTransitionTypes();
+  public final String validationErrorOrNull$FusedLocation_release();
+  public String toString();
+  public int hashCode();
+  public boolean equals(Object);
+}
+public final class location.fused.model.ProximityAlertRequestKt {
+}
+public final class location.fused.model.ProximityTransition extends Enum<location.fused.model.ProximityTransition> {
+  public static final location.fused.model.ProximityTransition ENTER;
+  public static final location.fused.model.ProximityTransition EXIT;
+  public static location.fused.model.ProximityTransition[] values();
+  public static location.fused.model.ProximityTransition valueOf(String);
+  public static kotlin.enums.EnumEntries<location.fused.model.ProximityTransition> getEntries();
+}
+
+## 바이트코드 안 퍼미션 문자열
+ai.pleos.playground.service.location.fused.FUSED_LOCATION_START
+pleos.car.permission.FUSED_LOCATION
