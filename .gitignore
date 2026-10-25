@@ -16,11 +16,13 @@ captures/
 .externalNativeBuild/
 .cxx/
 
-# APK/AAB는 GitHub Releases로 올린다
+# APK/AAB — 제출용 apk/ 폴더만 예외 (요강: apk/팀명_앱이름_release.apk)
 *.apk
 *.aab
 *.ap_
 output-metadata.json
+!apk/
+!apk/*.apk
 
 # IDE
 .idea/
