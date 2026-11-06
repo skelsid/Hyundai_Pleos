@@ -23,7 +23,7 @@ AAR 매니페스트와 바이트코드 안의 퍼미션 문자열에서 찾았�
 |---|---|---|
 | Vehicle | `pleos.car.permission.CAR_*` | 조회 |
 | Vehicle | `pleos.car.permission.CONTROL_CAR_*` | 제어. App Market 사전 승인 대상 |
-| Vehicle | `pleos.car.permission.PRIVATE_CAR_*` | 용도 미확인 |
+| Vehicle | `pleos.car.permission.PRIVATE_CAR_*` | `getTirePressure` 가 `PRIVATE_CAR_SAFETY` 를 요구한다. 에뮬레이터에서 `protectionLevel:normal` 로 부여됨(실측). App Market 허용 여부는 미확인 |
 | FusedLocation | `pleos.car.permission.FUSED_LOCATION` | |
 | TextToSpeech | **`pleos.car.permission.TTS_SERVICE`** | 없으면 `initialize()` 가 SecurityException (실측) |
 | SpeechToText | **`pleos.car.permission.STT_SERVICE`** | + `android.permission.RECORD_AUDIO` |
@@ -37,6 +37,9 @@ AAR 매니페스트와 바이트코드 안의 퍼미션 문자열에서 찾았�
 - 기어·EV 배터리 SOC 조회와 리스너 등록이 에뮬레이터에서 응답했다.
 - **현재 차속 조회 API 가 없다.** 크루즈 목표 속도만 있다.
 - `Gear` API 는 deprecated 다. AAOS 표준 `GEAR_SELECTION` 속성을 쓰라는 안내가 있다.
+- 주행 거리(2026-11-06 실측): `getCurrentDistanceDriven` 은 응답하고 값은 `0.0` 이다. 이름상 누적 거리로 보이나 의미와 단위는 미확인이다. `getTripCurrentDrivingDistance`, `getTripCumulativeDrivingDistance` 는 `ERROR_NOT_SUPPORTED_PROPERTY`.
+- 타이어(2026-11-06 실측): `getTirePressure` 는 에뮬레이터가 지원하지 않는다(`property ID is not in carPropertyConfig list, and so it is not supported: TIRE_PRESSURE`). 실차 응답은 미확인이다. `getLowTirePressure` 는 네 바퀴 모두 `137.0` 을 준다(단위 미확인).
+- 경고등(2026-11-06 실측): `getTelltalesInfo` 는 응답하고 항목은 0건이다.
 
 ### NaviHelper
 - `initialize(onOk, onErr)`, `addListener`.
@@ -60,6 +63,22 @@ AAR 매니페스트와 바이트코드 안의 퍼미션 문자열에서 찾았�
 ### SpeechToText
 - `request()`, `stop()`, `sendAudio(byte[])`, `completeAudioSend()`, `setLocale`, `registerApp`. `getCallApi`, `getAmbientAi` 도 있다(용도 미확인).
 - 실측: ON_DEVICE 초기화 후 `ready` 까지 왔고 서비스가 에뮬레이터 마이크로 녹음·인식을 돌린다. 말소리를 넣어 본 적은 없어 인식 텍스트는 확인하지 못했다.
+
+## 앱을 열지 않은 상태의 동작 (2026-11-06 실측)
+
+앱을 한 번 실행한 뒤 재부팅해 `BOOT_COMPLETED` 수신기와 `dataSync` 포그라운드 서비스로 확인했다. 드라이버 사용자(u10)에서 자동 시작됐다.
+
+| 기능 | 결과 |
+|---|---|
+| 기어, `getCurrentDistanceDriven` | 응답 |
+| FusedLocation, NaviHelper 위치 | 응답 |
+| TTS | `start` → `done` |
+| STT | `ready` 까지. 마이크 app op 가 `mode=1` 이고, 앱 화면에서 실행하면 `mode=0` 이다 |
+
+- 시스템이 `Foreground service started from background can not have location/camera/microphone access` 경고를 낸다. FusedLocation 은 그래도 응답한다.
+- STT 는 `mode=1` 에서도 Pleos 음성 서비스가 녹음을 시작했다. 실제 말소리가 인식되는지는 미확인이다.
+- 실차에서 시동을 끄고 켜는 것이 재부팅인지 절전 복귀인지는 미확인이다. `BOOT_COMPLETED` 에만 기대면 안 된다.
+- Android 15 이상을 대상으로 하면 `dataSync` 는 부팅 직후 시작이 제한된다. 현재 대상은 API 34 다.
 
 ## 문서와 다른 점, 주의
 

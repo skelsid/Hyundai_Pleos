@@ -20,6 +20,8 @@ adb logcat -s PleosProbe:I
 
 `local.properties` 에 `sdk.dir=C:/Users/<사용자>/AppData/Local/Android/Sdk` 가 필요하다(커밋 안 함).
 
+앱을 열지 않은 상태의 동작은 앱을 한 번 실행한 뒤 `adb reboot` 로 확인한다. `BootReceiver` 가 `TripWatchService` 를 시작하고 결과는 `service.*` 키로 남는다.
+
 ## 알아낸 것 (2026-10-25, 에뮬레이터 v2.1.0)
 
 - 문서에 없는 `pleos.car.permission.TTS_SERVICE` 퍼미션이 없으면 `TextToSpeech.initialize()` 가 SecurityException 으로 앱을 죽인다.
@@ -33,3 +35,8 @@ adb logcat -s PleosProbe:I
 - TTS `speak(text, isFinal)` 은 `isFinal=true` 여야 읽는다. `false` 면 쌓아만 둔다. 또 STT 가 인식 중이면 재생되지 않는다. `--es skip stt` 로 STT 를 빼고 돌리면 `tts.state=start` → `done` 이 온다.
 - FusedLocation 은 `adb emu geo fix` 를 따르지만 NaviHelper 는 따르지 않는다(자체 위치 성남 수정구). 맞추려면 `adb emu geo fix 127.094681 37.4127212`.
 - SELinux 가 `icvi-service` 실행을 막아 차량 HAL 이 제대로 못 뜨고, Virtual Console 이 `emulator_inactive` 를 돌려준다. user 빌드라 우회 불가. 기어·차속 변경은 못 해 봤다.
+
+## 알아낸 것 (2026-11-06, 에뮬레이터 v2.1.0)
+
+- 부팅 뒤 앱을 열지 않아도 포그라운드 서비스가 자동 시작되고, 기어·거리·위치·내비·TTS 가 동작한다. STT 는 마이크 app op 가 `mode=1` 이라 실제 인식 여부를 따로 확인해야 한다. 상세는 `../docs/sdk-api/README.md`.
+- 타이어 공기압은 에뮬레이터가 지원하지 않는다. 주행 거리 조회는 `0.0` 이다.

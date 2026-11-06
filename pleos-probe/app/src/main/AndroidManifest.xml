@@ -8,6 +8,9 @@
     <!-- 조회(get)용 퍼미션만 선언. 제어(CONTROL_*)는 App Market 사전 승인 대상이라 넣지 않는다 -->
     <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
     <uses-permission android:name="pleos.car.permission.CAR_ENERGY" />
+    <uses-permission android:name="pleos.car.permission.CAR_SAFETY" />
+    <!-- getTirePressure 가 요구한다. 3자 앱에 허용되는지 확인하려고 선언한다 -->
+    <uses-permission android:name="pleos.car.permission.PRIVATE_CAR_SAFETY" />
     <uses-permission android:name="pleos.car.permission.FUSED_LOCATION" />
     <!-- 문서엔 없지만 TextToSpeech.initialize() 가 이 퍼미션 없으면 SecurityException 을 던진다 (에뮬레이터 v2.1.0 실측) -->
     <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
@@ -17,6 +20,10 @@
     <!-- NaviHelper 조회·경로 요청용. NAVI_CUSTOM_* 는 용도가 문서에 없어 넣지 않는다 -->
     <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
     <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
+    <!-- 앱을 열지 않아도 부팅 뒤 자동 실행되는지 확인용 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application
         android:label="Pleos Probe"
@@ -34,5 +41,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".TripWatchService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 </manifest>

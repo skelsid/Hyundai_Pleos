@@ -19,6 +19,11 @@ import ai.pleos.playground.tts.constant.Mode
 import ai.pleos.playground.tts.listener.OnInitializeListener
 import ai.pleos.playground.tts.listener.EventListener as TtsEventListener
 import ai.pleos.playground.vehicle.Vehicle
+import ai.pleos.playground.vehicle.api.model.area.WheelArea
+import ai.pleos.playground.vehicle.constant.area.WheelValue.LEFT_FRONT
+import ai.pleos.playground.vehicle.constant.area.WheelValue.LEFT_REAR
+import ai.pleos.playground.vehicle.constant.area.WheelValue.RIGHT_FRONT
+import ai.pleos.playground.vehicle.constant.area.WheelValue.RIGHT_REAR
 import ai.pleos.playground.vehicle.constant.control.VehicleGear
 import ai.pleos.playground.vehicle.listener.EvBatteryStateOfChargeListener
 import ai.pleos.playground.vehicle.listener.GearSelectionListener
@@ -119,6 +124,9 @@ class MainActivity : Activity() {
         val skip = intent.getStringExtra(EXTRA_SKIP)?.split(',')?.toSet().orEmpty()
         listOf(
             "vehicle" to ::probeVehicle,
+            "trip" to ::probeTrip,
+            "tire" to ::probeTire,
+            "telltale" to ::probeTelltale,
             "location" to ::probeLocation,
             "tts" to ::probeTts,
             "stt" to ::probeStt,
@@ -179,6 +187,50 @@ class MainActivity : Activity() {
             { report("vehicle.soc.error", it.toString()) },
         )
         battery.registerEvBatteryStateOfCharge(socListener)
+    }
+
+    private fun probeTrip() {
+        val odometer = vehicle.getOdometer()
+        odometer.getCurrentDistanceDriven(
+            { report("trip.distanceDriven", it.toString()) },
+            { report("trip.distanceDriven.error", it.toString()) },
+        )
+        odometer.getTripCurrentDrivingDistance(
+            { report("trip.currentDistance", it.toString()) },
+            { report("trip.currentDistance.error", it.toString()) },
+        )
+        odometer.getTripCumulativeDrivingDistance(
+            { report("trip.cumulativeDistance", it.toString()) },
+            { report("trip.cumulativeDistance.error", it.toString()) },
+        )
+    }
+
+    private fun probeTire() {
+        val tire = vehicle.getTire()
+        for (wheel in listOf(LEFT_FRONT, RIGHT_FRONT, LEFT_REAR, RIGHT_REAR)) {
+            // 실패해도 다른 바퀴와 경고 기준값은 확인하도록 조회 하나씩 따로 감싼다
+            runProbe("tire.$wheel.pressure") {
+                tire.getTirePressure(
+                    WheelArea(wheel),
+                    { report("tire.$wheel.pressure", it.toString()) },
+                    { report("tire.$wheel.pressure.error", it.toString()) },
+                )
+            }
+            runProbe("tire.$wheel.low") {
+                tire.getLowTirePressure(
+                    WheelArea(wheel),
+                    { report("tire.$wheel.low", it.toString()) },
+                    { report("tire.$wheel.low.error", it.toString()) },
+                )
+            }
+        }
+    }
+
+    private fun probeTelltale() {
+        vehicle.getSafety().getTelltalesInfo(
+            { report("telltale.count", it.telltales.size.toString()) },
+            { report("telltale.error", it.toString()) },
+        )
     }
 
     private fun probeLocation() {
