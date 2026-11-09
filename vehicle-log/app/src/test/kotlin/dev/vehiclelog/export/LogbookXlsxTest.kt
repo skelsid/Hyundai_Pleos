@@ -97,6 +97,13 @@ class LogbookXlsxTest {
     }
 
     @Test
+    fun test_write_controlCharInName_removedAndXmlStaysValid() {
+        val parts = export(listOf(row(0).copy(user = "홍\u0001길\u0008동")))
+        assertWellFormed(parts)
+        assertTrue(cell(parts.getValue("xl/worksheets/sheet1.xml"), "C11").contains(">홍길동<"))
+    }
+
+    @Test
     fun test_write_noRows_keepsSingleEmptySheet() {
         val parts = export(emptyList())
         assertWellFormed(parts)

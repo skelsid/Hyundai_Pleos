@@ -169,8 +169,10 @@ object LogbookXlsx {
 
     private fun plain(value: Double): String = BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
 
+    /** XML 1.0 이 허용하지 않는 제어 문자는 엑셀이 파일을 못 열게 하므로 빼고, 특수 문자는 이스케이프한다. */
     private fun escape(text: String): String =
-        text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+        text.filter { it == '\t' || it == '\n' || it == '\r' || it >= ' ' && it != '\uFFFE' && it != '\uFFFF' }
+            .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 
     // ── 시트 복제 등록 ─────────────────────────────────────────
 
