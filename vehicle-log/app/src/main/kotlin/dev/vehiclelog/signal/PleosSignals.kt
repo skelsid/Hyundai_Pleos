@@ -31,6 +31,7 @@ class PleosSignals(context: Context) : VehicleSignals {
     private val navi = NaviHelper(context)
 
     private var onGear: ((Gear) -> Unit)? = null
+    private var gearAttempts = 0
 
     // 내비 도착 이벤트로 받은 이름. 운행 종료 시 도착지로 쓴다
     private var arrivedName: String? = null
@@ -59,23 +60,45 @@ class PleosSignals(context: Context) : VehicleSignals {
 
     override fun start(onGear: (Gear) -> Unit) {
         this.onGear = onGear
-        vehicle.initialize()
-        location.initialize()
+        // 퍼미션이 없거나 서비스가 없으면 예외가 난다. 서비스가 죽지 않게 잡는다
+        runCatching { vehicle.initialize() }.onFailure { AppLog.error("signal.vehicle.init.exception", it) }
+        runCatching { location.initialize() }.onFailure { AppLog.error("signal.location.init.exception", it) }
         // initialize() 는 IPC 바인딩이 비동기라 반환 직후 호출하면 실패할 수 있다 (pleos-probe 실측)
         handler.postDelayed(::subscribe, BIND_WAIT_MS)
     }
 
     private fun subscribe() {
-        val gear = vehicle.getGear()
-        gear.getCurrentGearSelectionState(
-            { state -> handler.post { onGear?.invoke(toGear(state)) } },
-            { AppLog.warn("signal.gear.read.error", "error" to it) },
-        )
-        gear.registerGearSelection(gearListener)
-        navi.initialize(
-            { navi.addListener(naviListener) },
-            { AppLog.warn("signal.navi.init.error", "error" to it) },
-        )
+        subscribeGear()
+        // 내비가 없어도 운행 기록은 돼야 하므로 기어와 따로 다룬다 (도착지 이름만 빠진다)
+        runCatching {
+            navi.initialize(
+                { navi.addListener(naviListener) },
+                { AppLog.warn("signal.navi.init.error", "error" to it) },
+            )
+        }.onFailure { AppLog.error("signal.navi.init.exception", it) }
+    }
+
+    /** 부팅 직후엔 차량 서비스 연결이 늦어 예외가 날 수 있다. 서비스가 죽지 않게 잡고 몇 번 다시 시도한다. */
+    private fun subscribeGear() {
+        runCatching {
+            val gear = vehicle.getGear()
+            gear.getCurrentGearSelectionState(
+                { state -> handler.post { onGear?.invoke(toGear(state)) } },
+                { AppLog.warn("signal.gear.read.error", "error" to it) },
+            )
+            gear.registerGearSelection(gearListener)
+        }.onSuccess {
+            AppLog.info("signal.gear.subscribed", "attempt" to gearAttempts + 1)
+        }.onFailure { e ->
+            gearAttempts++
+            if (gearAttempts < MAX_SUBSCRIBE_ATTEMPTS) {
+                AppLog.warn("signal.gear.subscribe.retry", "attempt" to gearAttempts, "error" to e)
+                handler.postDelayed(::subscribeGear, BIND_WAIT_MS)
+            } else {
+                // 기어를 못 들으면 운행을 감지할 수 없다. 로그로 남기고 화면 동작은 유지한다
+                AppLog.error("signal.gear.subscribe.failed", e, "attempts" to gearAttempts)
+            }
+        }
     }
 
     override fun readPoint(callback: (TripPoint) -> Unit) {
@@ -155,9 +178,10 @@ class PleosSignals(context: Context) : VehicleSignals {
         handler.removeCallbacksAndMessages(null)
         runCatching { vehicle.getGear().unregisterGearSelection(gearListener) }
         runCatching { navi.removeListener(naviListener) }
-        vehicle.release()
-        location.release()
-        navi.release()
+        // 서비스 종료 중 예외로 앱이 죽지 않게 각각 잡는다
+        runCatching { vehicle.release() }
+        runCatching { location.release() }
+        runCatching { navi.release() }
     }
 
     /** 거리·위치 두 조회가 모두 끝나거나 시간이 다 되면 한 번만 콜백한다. */
@@ -192,6 +216,8 @@ class PleosSignals(context: Context) : VehicleSignals {
 
     companion object {
         private const val BIND_WAIT_MS = 1_500L
+        // 1.5초 간격 10번 = 부팅 뒤 약 15초까지 기다린다
+        private const val MAX_SUBSCRIBE_ATTEMPTS = 10
         private const val READ_TIMEOUT_MS = 3_000L
 
         /**
