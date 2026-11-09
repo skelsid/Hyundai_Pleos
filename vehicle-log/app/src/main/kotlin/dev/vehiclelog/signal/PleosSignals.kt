@@ -78,7 +78,7 @@ class PleosSignals(context: Context) : VehicleSignals {
         // TODO: getCurrentDistanceDriven 의 단위·의미(누적 거리인지)를 실차에서 확인. 지금은 km 누적값으로 가정
         runCatching {
             vehicle.getOdometer().getCurrentDistanceDriven(
-                { km -> handler.post { reading.odometer(km?.toDouble()) } },
+                { km -> handler.post { reading.odometer(validOdometer(km)) } },
                 { e -> handler.post { AppLog.warn("signal.odometer.error", "error" to e); reading.odometer(null) } },
             )
         }.onFailure { AppLog.error("signal.odometer.exception", it); reading.odometer(null) }
@@ -144,6 +144,12 @@ class PleosSignals(context: Context) : VehicleSignals {
     companion object {
         private const val BIND_WAIT_MS = 1_500L
         private const val READ_TIMEOUT_MS = 3_000L
+
+        /**
+         * 계기판 누적거리는 0 이하일 수 없다. 에뮬레이터는 값이 없을 때 0.0 을 주므로 '값 없음'으로 본다.
+         * 실차에서 값이 오면 코드 변경 없이 그대로 채워진다.
+         */
+        fun validOdometer(km: Float?): Double? = km?.toDouble()?.takeIf { it > 0.0 }
 
         fun toGear(gear: VehicleGear?): Gear = when (gear) {
             null, VehicleGear.GEAR_UNKNOWN -> Gear.UNKNOWN
