@@ -17,11 +17,15 @@ import java.util.Locale
 class Announcer(context: Context) {
 
     private val handler = Handler(Looper.getMainLooper())
-    private val tts = TextToSpeech(context, Mode.ON_DEVICE)
+    // 음성 엔진이 없는 기기에서도 운행 기록은 돼야 하므로 만들기 실패를 잡고 안내만 끈다
+    private val tts: TextToSpeech? = runCatching { TextToSpeech(context, Mode.ON_DEVICE) }
+        .onFailure { AppLog.error("tts.create.exception", it) }
+        .getOrNull()
     private var ready = false
     private var pending: String? = null
 
     fun start() {
+        val tts = tts ?: return
         runCatching {
             tts.initialize(object : OnInitializeListener {
                 override fun onSuccess() {
@@ -46,6 +50,7 @@ class Announcer(context: Context) {
     }
 
     private fun speakNow(text: String) {
+        val tts = tts ?: return
         runCatching { tts.speak(text, true) }
             .onSuccess { AppLog.info("tts.speak", "text" to text) }
             .onFailure { AppLog.error("tts.speak.exception", it) }
@@ -53,6 +58,6 @@ class Announcer(context: Context) {
 
     fun release() {
         handler.removeCallbacksAndMessages(null)
-        runCatching { tts.release() }
+        runCatching { tts?.release() }
     }
 }
