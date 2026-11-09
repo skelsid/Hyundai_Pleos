@@ -14,9 +14,20 @@ object TripText {
         km?.let { String.format(Locale.KOREA, "%.1fkm", it) } ?: "거리 미수신"
 
     fun period(startMillis: Long, endMillis: Long?): String {
-        val day = SimpleDateFormat("M월 d일 HH:mm", Locale.KOREA).format(Date(startMillis))
-        val end = endMillis?.let { SimpleDateFormat("HH:mm", Locale.KOREA).format(Date(it)) } ?: "운행 중"
-        return "$day – $end"
+        val dayTime = SimpleDateFormat("M월 d일 HH:mm", Locale.KOREA)
+        val start = dayTime.format(Date(startMillis))
+        val end = when {
+            endMillis == null -> "운행 중"
+            // 자정을 넘긴 운행은 끝 날짜도 보여 준다
+            sameDay(startMillis, endMillis) -> SimpleDateFormat("HH:mm", Locale.KOREA).format(Date(endMillis))
+            else -> dayTime.format(Date(endMillis))
+        }
+        return "$start – $end"
+    }
+
+    private fun sameDay(a: Long, b: Long): Boolean {
+        val day = SimpleDateFormat("yyyyMMdd", Locale.ROOT)
+        return day.format(Date(a)) == day.format(Date(b))
     }
 
     /**
