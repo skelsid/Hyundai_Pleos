@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 검토 후 의도적으로 두는 경고. 새 경고는 그대로 보이도록 항목별로만 끈다 -->
+<lint>
+    <!-- Pleos Connect 는 Android 14(API 34) 다. 대상 기기에서 검증한 34 에 맞춘다 -->
+    <issue id="OldTargetApi" severity="ignore" />
+    <!-- 새 compileSdk·Gradle 알림. 제출 직전 빌드 도구를 바꾸지 않는다 (버전 고정) -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <!-- Pleos SDK 가 가져오는 jna 의 네이티브 라이브러리다. 16KB 페이지는 Android 15 부터라 API 34 기기와 무관하고, 우리가 고칠 수 없다 -->
+    <issue id="Aligned16KB" severity="ignore" />
+    <!-- 한국 법인차량용 한국어 단일 화면이다. 번역 리소스를 두지 않는다 -->
+    <issue id="SetTextI18n" severity="ignore" />
+    <!-- core-ktx 의존성을 쓰지 않는다. edit().apply() 와 같은 동작이다 -->
+    <issue id="UseKtx" severity="ignore" />
+</lint>

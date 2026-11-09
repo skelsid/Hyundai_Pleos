@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 검토 후 의도적으로 두는 경고. 본 앱(vehicle-log)과 같은 기준이다 -->
+<lint>
+    <!-- Pleos Connect 는 Android 14(API 34) 다. 대상 기기에 맞춘다 -->
+    <issue id="OldTargetApi" severity="ignore" />
+    <!-- 새 compileSdk 알림. 본 앱과 같은 빌드 도구 버전으로 고정한다 -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <!-- Pleos SDK 가 가져오는 jna 의 네이티브 라이브러리다. 16KB 페이지는 Android 15 부터라 API 34 기기와 무관하다 -->
+    <issue id="Aligned16KB" severity="ignore" />
+</lint>
