@@ -25,7 +25,11 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
+    <!-- 운행 DB 에 사용자 이름·위치가 있어 기기 백업(클라우드·adb backup)으로 빠져나가지 않게 막는다 -->
     <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="차량운행기록"
         android:supportsRtl="true">
