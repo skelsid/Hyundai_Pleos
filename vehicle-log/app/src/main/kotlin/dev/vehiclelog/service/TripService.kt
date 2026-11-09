@@ -102,7 +102,7 @@ class TripService : Service() {
         }
         openTripId = null
         store.endTrip(id, point)
-        AppLog.info("trip.ended", "id" to id, "odometerKm" to point.odometerKm, "place" to point.placeName)
+        AppLog.info("trip.ended", "id" to id, "odometerKm" to point.odometerKm, "hasPlace" to (point.placeName != null))
         mainHandler.post {
             announcer.speak(TRIP_END_SPEECH)
             showTripEnd(id)

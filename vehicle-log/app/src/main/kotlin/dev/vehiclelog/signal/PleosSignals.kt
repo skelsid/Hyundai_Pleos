@@ -48,7 +48,8 @@ class PleosSignals(context: Context) : VehicleSignals {
     private val naviListener = object : NaviHelperEventListener {
         override fun onDestinationArrived(info: DestinationArrivedInfo) {
             arrivedName = info.name.takeIf { it.isNotBlank() }
-            AppLog.info("signal.navi.arrived", "name" to arrivedName)
+            // 장소 이름은 위치 정보라 로그에 남기지 않는다
+            AppLog.info("signal.navi.arrived", "hasName" to (arrivedName != null))
         }
 
         override fun onError(code: NaviErrorCode) {
