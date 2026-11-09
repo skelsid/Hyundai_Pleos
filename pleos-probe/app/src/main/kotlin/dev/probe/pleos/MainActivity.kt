@@ -257,7 +257,8 @@ class MainActivity : Activity() {
     }
 
     private fun report(key: String, value: String) {
-        Log.i(TAG, "event=\"$key\" value=\"$value\"")
+        // 좌표·주소는 위치 정보라 logcat 에는 가리고, 확인용 화면에만 그대로 보여 준다
+        Log.i(TAG, "event=\"$key\" value=\"${maskLocation(value)}\"")
         // SDK 콜백이 어느 스레드로 올지 문서에 없어 화면 갱신은 메인 스레드로 넘긴다
         mainHandler.post {
             results[key] = value
@@ -273,11 +274,11 @@ class MainActivity : Activity() {
         runCatching { fusedLocation.unregisterFusedLocationCallback(locationListener) }
         runCatching { stt.removeListener(sttListener) }
         runCatching { navi.removeListener(naviListener) }
-        vehicle.release()
-        fusedLocation.release()
-        tts.release()
-        stt.release()
-        navi.release()
+        runCatching { vehicle.release() }
+        runCatching { fusedLocation.release() }
+        runCatching { tts.release() }
+        runCatching { stt.release() }
+        runCatching { navi.release() }
         super.onDestroy()
     }
 

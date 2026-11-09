@@ -150,7 +150,8 @@ class TripWatchService : Service() {
     }
 
     private fun report(key: String, value: String) {
-        Log.i(TAG, "event=\"$key\" value=\"$value\"")
+        // 부팅 때 자동으로 도는 서비스라 좌표를 logcat 에 남기지 않는다
+        Log.i(TAG, "event=\"$key\" value=\"${maskLocation(value)}\"")
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -160,11 +161,12 @@ class TripWatchService : Service() {
         // 초기화 실패 등으로 등록이 안 된 상태여도 해제는 시도한다
         runCatching { stt.removeListener(sttListener) }
         runCatching { navi.removeListener(naviListener) }
-        vehicle.release()
-        tts.release()
-        stt.release()
-        fusedLocation.release()
-        navi.release()
+        // onCreate 가 중간에 실패하면 lateinit 이 비어 있을 수 있어 각각 잡는다
+        runCatching { vehicle.release() }
+        runCatching { tts.release() }
+        runCatching { stt.release() }
+        runCatching { fusedLocation.release() }
+        runCatching { navi.release() }
         super.onDestroy()
     }
 
