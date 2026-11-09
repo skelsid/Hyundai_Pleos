@@ -89,4 +89,3 @@ adb shell am start --user 10 -n dev.vehiclelog/.ui.MainActivity --ez replay fals
 - `PRIVATE_CAR_SAFETY` 퍼미션이 App Market 에서 허용되는지 확인하지 못했다.
 - 앱이 뒤에 있을 때 전체 화면 알림으로 종료 화면이 열리는지는 실차·에뮬레이터에서 확인하지 못했다.
 - 엑셀 파일은 앱 전용 문서 폴더(`Android/data/dev.vehiclelog/files/Documents/`)에 저장된다. 차량에서 꺼내는 방법(USB·공유)은 실차 환경에 맞춰 정해야 한다.
-- 시작 직후 3초 안에 끝나는 아주 짧은 운행은 시작·종료 조회 순서가 뒤집힐 수 있다.

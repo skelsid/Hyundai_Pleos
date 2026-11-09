@@ -18,6 +18,7 @@ import dev.vehiclelog.signal.VehicleSignals
 import dev.vehiclelog.trip.Gear
 import dev.vehiclelog.trip.TireCheck
 import dev.vehiclelog.trip.TripDetector
+import dev.vehiclelog.trip.SerialQueue
 import dev.vehiclelog.trip.TripEvent
 import dev.vehiclelog.ui.TripEndActivity
 import java.util.concurrent.ExecutorService
@@ -39,6 +40,10 @@ class TripService : Service() {
     // 열린 운행 id. io 스레드에서만 읽고 쓴다 (시작·종료 기록이 같은 순서로 직렬 실행되게)
     private var openTripId: Long? = null
     private var started = false
+
+    // 차량 값 조회는 최대 3초 걸린다. 짧은 운행에서 시작·종료 조회가 겹치면 끝나는 순서가 뒤집혀
+    // 운행이 닫히지 않고 남을 수 있으므로, 조회를 한 번에 하나씩 기어 변화 순서대로 한다 (메인 스레드)
+    private val reads = SerialQueue<Pair<TripEvent, Long>> { (event, at), done -> readAndRecord(event, at, done) }
 
     override fun onCreate() {
         super.onCreate()
@@ -66,15 +71,23 @@ class TripService : Service() {
     }
 
     private fun onGear(gear: Gear) {
-        when (detector.onGear(gear)) {
-            TripEvent.STARTED -> signals.readPoint { point ->
-                signals.onTripStarted()
-                io.execute { recordStart(point) }
-                checkTires()
+        val event = detector.onGear(gear) ?: return
+        // 시각은 기어가 바뀐 순간으로 남긴다 (조회가 줄을 서서 늦게 끝나도)
+        reads.add(event to System.currentTimeMillis())
+    }
+
+    private fun readAndRecord(event: TripEvent, at: Long, done: () -> Unit) {
+        signals.readPoint { raw ->
+            val point = raw.copy(timeMillis = at)
+            when (event) {
+                TripEvent.STARTED -> {
+                    signals.onTripStarted()
+                    io.execute { recordStart(point) }
+                    checkTires()
+                }
+                TripEvent.ENDED -> io.execute { recordEnd(point) }
             }
-            // TODO: 실차에서 시작 조회가 종료 조회보다 늦게 끝나면 순서가 뒤집힐 수 있다 (조회 제한 시간 3초 안의 짧은 운행)
-            TripEvent.ENDED -> signals.readPoint { point -> io.execute { recordEnd(point) } }
-            null -> Unit
+            done()
         }
     }
 
