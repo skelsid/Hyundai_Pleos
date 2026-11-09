@@ -19,6 +19,7 @@ internal object Ui {
     private const val PADDING_PX = 40
     private const val GAP_PX = 16
     private const val BUTTON_MIN_HEIGHT_PX = 130
+    private const val BUTTON_MAX_LINES = 4
 
     fun screen(context: Context, content: LinearLayout): ScrollView =
         ScrollView(context).apply { addView(content, MATCH_PARENT, WRAP_CONTENT) }
@@ -53,6 +54,9 @@ internal object Ui {
         this.text = text
         textSize = BUTTON_SP
         isAllCaps = false
+        // 기본 버튼 스타일은 한 줄만 보여 줘서 여러 줄 라벨(월별 목록)이 잘린다
+        isSingleLine = false
+        maxLines = BUTTON_MAX_LINES
         minHeight = BUTTON_MIN_HEIGHT_PX
         layoutParams = spaced()
         setOnClickListener { onClick() }

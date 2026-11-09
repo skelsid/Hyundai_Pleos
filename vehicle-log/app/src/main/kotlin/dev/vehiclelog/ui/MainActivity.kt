@@ -29,6 +29,7 @@ class MainActivity : Activity() {
         root.addView(Ui.title(this, "차량운행기록"))
         root.addView(status)
         root.addView(classifyButton)
+        root.addView(Ui.button(this, "월별 운행기록") { startActivity(Intent(this, MonthlyActivity::class.java)) })
         root.addView(Ui.button(this, "사용자 관리") { startActivity(Intent(this, UsersActivity::class.java)) })
         root.addView(Ui.button(this, "차량 정보") { startActivity(Intent(this, VehicleInfoActivity::class.java)) })
         setContentView(Ui.screen(this, root))

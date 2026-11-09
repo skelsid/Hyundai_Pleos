@@ -146,6 +146,19 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
         writableDatabase.update("users", values, "id = ?", arrayOf(id.toString()))
     }
 
+    /** [startMillis, endMillis) 에 시작해 끝난 운행. 시작 시각 순. */
+    fun endedTripsBetween(startMillis: Long, endMillis: Long): List<Trip> =
+        readableDatabase.query(
+            "trips", null, "end_time IS NOT NULL AND start_time >= ? AND start_time < ?",
+            arrayOf(startMillis.toString(), endMillis.toString()), null, null, "start_time ASC",
+        ).use { c -> buildList { while (c.moveToNext()) add(c.toTrip()) } }
+
+    /** 빠진 후보까지 포함한 모든 사용자 이름. 지난 운행의 사용자를 보여 줄 때 쓴다. */
+    fun userNames(): Map<Long, String> =
+        readableDatabase.rawQuery("SELECT id, name FROM users", null).use { c ->
+            buildMap { while (c.moveToNext()) put(c.getLong(0), c.getString(1)) }
+        }
+
     fun tripCount(): Int =
         readableDatabase.rawQuery("SELECT COUNT(*) FROM trips", null).use { it.moveToFirst(); it.getInt(0) }
 

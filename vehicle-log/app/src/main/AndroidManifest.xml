@@ -51,6 +51,14 @@
                 android:name="distractionOptimized"
                 android:value="true" />
         </activity>
+        <activity
+            android:name=".ui.MonthlyActivity"
+            android:exported="false">
+            <!-- 읽기 위주 화면 -->
+            <meta-data
+                android:name="distractionOptimized"
+                android:value="true" />
+        </activity>
         <!-- 입력 칸이 있는 화면은 주행 중 시스템이 막도록 distractionOptimized 를 두지 않는다 -->
         <activity
             android:name=".ui.UsersActivity"

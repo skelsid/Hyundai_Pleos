@@ -1,5 +1,8 @@
 package dev.vehiclelog.trip
 
+import java.util.Calendar
+import java.util.TimeZone
+
 /** 운행기록표 계산. 엑셀 양식의 수식과 같은 규칙을 쓴다. */
 object TripMath {
 
@@ -23,6 +26,48 @@ object TripMath {
         val business = measured.filter { !it.nonBusiness }.sumOf { it.distanceKm!! }
         return business / total
     }
+
+    /**
+     * 월별 기록표 합계. 아직 분류하지 않은 운행(nonBusiness == null)은 전체 거리에는 넣고
+     * 업무사용비율 계산에서는 뺀다 — 분류 전에 비율이 확정된 것처럼 보이지 않게.
+     */
+    fun monthSummary(trips: List<MonthTrip>): MonthSummary {
+        val classified = trips.mapNotNull { t -> t.nonBusiness?.let { TripDistance(t.distanceKm, it) } }
+        return MonthSummary(
+            tripCount = trips.size,
+            totalKm = trips.sumOf { it.distanceKm ?: 0.0 },
+            businessKm = classified.filter { !it.nonBusiness }.sumOf { it.distanceKm ?: 0.0 },
+            businessRatio = businessRatio(classified),
+            unmeasured = trips.count { it.distanceKm == null },
+            unclassified = trips.count { it.nonBusiness == null },
+        )
+    }
+
+    /** 그 달 1일 0시부터 다음 달 1일 0시 직전까지의 [시작, 끝) 밀리초. month 는 1~12. */
+    fun monthRange(year: Int, month: Int, zone: TimeZone): Pair<Long, Long> {
+        require(month in 1..12) { "month 는 1~12: $month" }
+        val calendar = Calendar.getInstance(zone).apply {
+            clear()
+            set(year, month - 1, 1)
+        }
+        val start = calendar.timeInMillis
+        calendar.add(Calendar.MONTH, 1)
+        return start to calendar.timeInMillis
+    }
 }
 
 data class TripDistance(val distanceKm: Double?, val nonBusiness: Boolean)
+
+/** 월별 합계 입력. nonBusiness 가 null 이면 미분류. */
+data class MonthTrip(val distanceKm: Double?, val nonBusiness: Boolean?)
+
+data class MonthSummary(
+    val tripCount: Int,
+    val totalKm: Double,
+    val businessKm: Double,
+    /** 0.0~1.0. 분류된 운행의 거리가 0 이면 null */
+    val businessRatio: Double?,
+    /** 계기판 값이 없어 거리를 못 구한 운행 수 */
+    val unmeasured: Int,
+    val unclassified: Int,
+)

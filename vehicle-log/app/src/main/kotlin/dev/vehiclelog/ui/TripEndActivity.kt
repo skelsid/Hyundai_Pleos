@@ -27,6 +27,9 @@ class TripEndActivity : Activity() {
     private lateinit var root: LinearLayout
     private var trip: Trip? = null
     private var selectedUserId: Long? = null
+
+    // 월별 기록표에서 이미 분류한 운행을 고치러 들어온 경우
+    private var editing = false
     private val userButtons = mutableMapOf<Long, Pair<Button, User>>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,12 +37,14 @@ class TripEndActivity : Activity() {
         root = Ui.column(this)
         setContentView(Ui.screen(this, root))
         getSystemService(NotificationManager::class.java).cancel(TripService.TRIP_END_NOTIFICATION_ID)
+        editing = intent.getBooleanExtra(EXTRA_EDIT, false)
         load(intent.getLongExtra(EXTRA_TRIP_ID, NO_TRIP))
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        editing = intent.getBooleanExtra(EXTRA_EDIT, false)
         load(intent.getLongExtra(EXTRA_TRIP_ID, NO_TRIP))
     }
 
@@ -52,9 +57,13 @@ class TripEndActivity : Activity() {
     private fun load(tripId: Long) {
         io.execute {
             val store = TripStore.get(this)
-            // 이미 분류된 운행을 다시 열면 남은 미분류 운행으로 넘어간다
-            val target = store.trip(tripId)?.takeIf { it.endTime != null && it.nonBusiness == null }
-                ?: store.oldestUnclassifiedTrip()
+            val target = if (editing) {
+                store.trip(tripId)?.takeIf { it.endTime != null }
+            } else {
+                // 이미 분류된 운행을 다시 열면 남은 미분류 운행으로 넘어간다
+                store.trip(tripId)?.takeIf { it.endTime != null && it.nonBusiness == null }
+                    ?: store.oldestUnclassifiedTrip()
+            }
             val users = store.activeUsers()
             val lastUserId = store.lastUserId()
             val remaining = store.unclassifiedCount()
@@ -70,11 +79,21 @@ class TripEndActivity : Activity() {
             return
         }
         trip = target
-        selectedUserId = TripText.defaultUserId(users.map { it.id }, lastUserId)
+        val userIds = users.map { it.id }
+        selectedUserId = if (editing) {
+            target.userId?.takeIf { it in userIds }
+        } else {
+            TripText.defaultUserId(userIds, lastUserId)
+        }
         userButtons.clear()
         root.removeAllViews()
 
-        root.addView(Ui.title(this, if (remaining > 1) "운행이 끝났습니다 (미분류 ${remaining}건)" else "운행이 끝났습니다"))
+        val title = when {
+            editing -> "운행 분류 수정"
+            remaining > 1 -> "운행이 끝났습니다 (미분류 ${remaining}건)"
+            else -> "운행이 끝났습니다"
+        }
+        root.addView(Ui.title(this, title))
         val km = TripMath.distanceKm(target.startOdometerKm, target.endOdometerKm)
         root.addView(
             Ui.body(
@@ -131,7 +150,7 @@ class TripEndActivity : Activity() {
             AppLog.info("trip.classified", "id" to target.id, "userId" to userId, "nonBusiness" to nonBusiness)
             runOnUiThread {
                 Toast.makeText(this, "저장했습니다", Toast.LENGTH_SHORT).show()
-                load(NO_TRIP)
+                if (editing) finish() else load(NO_TRIP)
             }
         }
     }
@@ -143,7 +162,14 @@ class TripEndActivity : Activity() {
 
     companion object {
         private const val EXTRA_TRIP_ID = "trip_id"
+        private const val EXTRA_EDIT = "edit"
         private const val NO_TRIP = -1L
+
+        /** 이미 분류한 운행을 고친다. 저장하면 화면을 닫는다. */
+        fun editIntent(context: Context, tripId: Long): Intent =
+            Intent(context, TripEndActivity::class.java)
+                .putExtra(EXTRA_TRIP_ID, tripId)
+                .putExtra(EXTRA_EDIT, true)
 
         fun intent(context: Context, tripId: Long = NO_TRIP): Intent =
             Intent(context, TripEndActivity::class.java)
