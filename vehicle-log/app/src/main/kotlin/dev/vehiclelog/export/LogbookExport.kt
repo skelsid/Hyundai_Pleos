@@ -7,6 +7,7 @@ import dev.vehiclelog.data.TripStore
 import dev.vehiclelog.data.VehicleInfo
 import dev.vehiclelog.trip.TripMath
 import java.io.File
+import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 
@@ -23,7 +24,8 @@ object LogbookExport {
         val trips = store.endedTripsBetween(start, end)
         val names = store.userNames()
         val info = VehicleInfo.load(context)
-        val lastDay = (end - start) / DAY_MILLIS
+        // 일광절약시간이 있는 시간대에서는 (끝-시작)/하루 가 하루 모자랄 수 있어 달력으로 센다
+        val lastDay = Calendar.getInstance(zone).apply { timeInMillis = start }.getActualMaximum(Calendar.DAY_OF_MONTH)
         val header = LogHeader(
             corporation = info.corporation,
             plate = info.plate,
@@ -59,6 +61,4 @@ object LogbookExport {
         AppLog.info("export.done", "rows" to rows.size, "file" to file.name)
         return file
     }
-
-    private const val DAY_MILLIS = 86_400_000L
 }
