@@ -51,6 +51,59 @@ scan_tree() {  # $@=git grep 대상 리비전 (비면 HEAD)
   fi
 }
 
+# 오피스 문서(xlsx·docx·pptx)는 zip 이라 git grep 이 속을 못 본다. 풀어서 XML 을 검사한다
+OFFICE_RE='\.(xlsx|xlsm|docx|pptx)$'
+OFFICE_META='<dc:creator>[^<]|<cp:lastModifiedBy>[^<]|absPath url="|w:author="[^"]'
+scan_office_blob() {  # $1=표시 이름 $2=blob 이름(git cat-file 이 읽는 것)
+  local tmp text out
+  tmp="$(mktemp)"
+  git cat-file blob "$2" >"$tmp" 2>/dev/null || { rm -f "$tmp"; return; }
+  # unzip 의 와일드카드는 '[Content_Types].xml' 같은 이름의 대괄호 때문에 일부만 맞는다.
+  # 멤버 이름을 하나씩 받아 대괄호를 이스케이프해서 꺼낸다
+  local member names=()
+  while IFS= read -r member; do
+    if [[ "$member" =~ \.(xml|rels)$ ]]; then
+      member="${member//\[/\\[}"
+      names+=("${member//\]/\\]}")
+    fi
+  done < <(unzip -Z1 "$tmp" 2>/dev/null || true)
+  text=""
+  if [[ ${#names[@]} -gt 0 ]]; then text="$(unzip -p "$tmp" "${names[@]}" 2>/dev/null || true)"; fi
+  rm -f "$tmp"
+  # set -e 아래에서 '[[ ]] && …' 가 함수 끝 상태로 남으면 스크립트가 조용히 끝난다. if 로 쓴다
+  if [[ -z "$text" ]]; then return 0; fi
+  if out="$(grep -oE "$OFFICE_META" <<<"$text" | sort -u)"; then
+    report "$1 문서 속성에 작성자·저장 경로가 남아 있음: $(tr '\n' ' ' <<<"$out")"
+  fi
+  if out="$(grep -oE "${grep_args[@]}" <<<"$text" | sort -u)"; then
+    report "$1 안에 개인정보로 보이는 문자열:"; echo "$out" | head -20 >&2
+  fi
+  if [[ ${#fixed_args[@]} -gt 0 ]] && grep -qiF "${fixed_args[@]}" <<<"$text"; then
+    report "$1 안에 .privacy-blocklist 항목이 있음"
+  fi
+}
+
+scan_office() {  # $1=staged|head|history
+  local mode="$1" path sha
+  case "$mode" in
+    staged)
+      while IFS= read -r -d '' path; do
+        if [[ "$path" =~ $OFFICE_RE ]]; then scan_office_blob "$path" ":$path"; fi
+      done < <(git diff --cached --name-only --diff-filter=AM -z)
+      ;;
+    head)
+      while IFS= read -r -d '' path; do
+        if [[ "$path" =~ $OFFICE_RE ]]; then scan_office_blob "$path" "HEAD:$path"; fi
+      done < <(git ls-tree -r -z --name-only HEAD)
+      ;;
+    history)
+      while read -r sha path; do
+        if [[ "$path" =~ $OFFICE_RE ]]; then scan_office_blob "$path (blob ${sha:0:7})" "$sha"; fi
+      done < <(git rev-list --all --objects | awk 'NF>=2' | sort -u -k1,1)
+      ;;
+  esac
+}
+
 case "$MODE" in
   --staged)
     check_email "커밋 작성자(author)" "$(git config user.email || true)"
@@ -63,6 +116,7 @@ case "$MODE" in
         report ".privacy-blocklist 항목이 추가한 줄에 있음:"; echo "$out" | head -50 >&2
       fi
     fi
+    scan_office staged
     ;;
   ""|--history)
     while IFS= read -r e; do check_email "커밋 기록의" "$e"; done \
@@ -76,8 +130,10 @@ case "$MODE" in
     if [[ "$MODE" == "--history" ]]; then
       mapfile -t revs < <(git rev-list --all)
       scan_tree "${revs[@]}"
+      scan_office history
     else
       scan_tree
+      scan_office head
     fi
     ;;
   *) echo "사용법: $0 [--staged|--history]" >&2; exit 2 ;;
