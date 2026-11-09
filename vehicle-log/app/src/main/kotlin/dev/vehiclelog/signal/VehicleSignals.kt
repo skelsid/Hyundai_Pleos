@@ -1,6 +1,7 @@
 package dev.vehiclelog.signal
 
 import dev.vehiclelog.trip.Gear
+import dev.vehiclelog.trip.TireReading
 
 /** 운행 시작·종료 순간에 남길 값. 읽지 못한 값은 null. */
 data class TripPoint(
@@ -23,6 +24,9 @@ interface VehicleSignals {
 
     /** 지금 시점의 계기판 거리·위치·도착지 이름. 조회가 비동기라 콜백으로 준다. */
     fun readPoint(callback: (TripPoint) -> Unit)
+
+    /** 네 바퀴 공기압과 차량 저압 기준값. 못 받은 바퀴는 null. 한 번만 콜백한다. */
+    fun readTires(callback: (TireReading) -> Unit)
 
     /** 새 운행이 시작되면 직전 운행의 도착지 이름을 지운다. */
     fun onTripStarted()

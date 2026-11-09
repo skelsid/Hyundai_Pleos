@@ -1,7 +1,7 @@
 [
   {"delayMs": 3000, "gear": "PARK", "odometerKm": 25000.0, "lat": 37.5172, "lon": 127.0473, "place": "본사"},
-  {"delayMs": 4000, "gear": "MOVING", "odometerKm": 25000.0, "lat": 37.5172, "lon": 127.0473, "place": "본사"},
+  {"delayMs": 4000, "gear": "MOVING", "odometerKm": 25000.0, "lat": 37.5172, "lon": 127.0473, "place": "본사", "tires": [36.0, 36.0, 35.5, 36.0]},
   {"delayMs": 8000, "gear": "PARK", "odometerKm": 25042.3, "lat": 37.4012, "lon": 127.1086, "place": "○○상사"},
-  {"delayMs": 20000, "gear": "MOVING", "odometerKm": 25042.3, "lat": 37.4012, "lon": 127.1086},
+  {"delayMs": 20000, "gear": "MOVING", "odometerKm": 25042.3, "lat": 37.4012, "lon": 127.1086, "tires": [36.0, 35.5, 30.0, 36.0]},
   {"delayMs": 8000, "gear": "PARK", "odometerKm": 25047.8, "lat": 37.3947, "lon": 127.1112, "place": "식당"}
 ]

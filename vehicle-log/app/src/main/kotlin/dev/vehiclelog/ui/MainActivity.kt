@@ -8,7 +8,11 @@ import android.widget.TextView
 import dev.vehiclelog.AppLog
 import dev.vehiclelog.data.TripStore
 import dev.vehiclelog.service.Settings
+import dev.vehiclelog.service.TireStatus
 import dev.vehiclelog.service.TripService
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.Executors
 
 /**
@@ -64,8 +68,11 @@ class MainActivity : Activity() {
             val store = TripStore.get(this)
             val count = store.tripCount()
             val unclassified = store.unclassifiedCount()
+            val tire = TireStatus.load(this)
             runOnUiThread {
-                status.text = "운행 감지 중 · 신호: ${if (replay) "재생(시연)" else "실차"}\n저장된 운행: ${count}건"
+                val tireText = tire?.let { "${it.summary} (${TIME.format(Date(it.timeMillis))} 출발 시)" } ?: "아직 점검 전"
+                status.text = "운행 감지 중 · 신호: ${if (replay) "재생(시연)" else "실차"}\n저장된 운행: ${count}건\n" +
+                    "타이어 공기압: $tireText"
                 classifyButton.text = "미분류 운행 분류 (${unclassified}건)"
                 classifyButton.isEnabled = unclassified > 0
             }
@@ -78,6 +85,7 @@ class MainActivity : Activity() {
     }
 
     companion object {
+        private val TIME = SimpleDateFormat("M월 d일 HH:mm", Locale.KOREA)
         private const val EXTRA_REPLAY = "replay"
     }
 }

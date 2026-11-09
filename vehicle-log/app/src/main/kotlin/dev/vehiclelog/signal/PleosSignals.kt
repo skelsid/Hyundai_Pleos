@@ -8,6 +8,8 @@ import ai.pleos.playground.navi.data.DestinationArrivedInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import ai.pleos.playground.vehicle.Vehicle
+import ai.pleos.playground.vehicle.api.model.area.WheelArea
+import ai.pleos.playground.vehicle.constant.area.WheelValue
 import ai.pleos.playground.vehicle.constant.control.VehicleGear
 import ai.pleos.playground.vehicle.listener.GearSelectionListener
 import android.content.Context
@@ -15,6 +17,8 @@ import android.os.Handler
 import android.os.Looper
 import dev.vehiclelog.AppLog
 import dev.vehiclelog.trip.Gear
+import dev.vehiclelog.trip.TireReading
+import dev.vehiclelog.trip.Wheel
 
 /** 실차 신호. Pleos Vehicle·FusedLocation·NaviHelper 를 쓴다. */
 class PleosSignals(context: Context) : VehicleSignals {
@@ -97,6 +101,50 @@ class PleosSignals(context: Context) : VehicleSignals {
         handler.postDelayed(reading::finish, READ_TIMEOUT_MS)
     }
 
+    override fun readTires(callback: (TireReading) -> Unit) {
+        // TODO: 공기압 단위(psi·kPa)를 실차에서 확인. 비교는 비율·차량 기준값으로만 해서 단위와 무관하다
+        val pressure = mutableMapOf<Wheel, Double?>()
+        val low = mutableMapOf<Wheel, Double?>()
+        var delivered = false
+        val finish = {
+            if (!delivered) {
+                delivered = true
+                callback(TireReading(pressure.toMap(), low.toMap()))
+            }
+        }
+        val expected = Wheel.entries.size * 2
+        fun put(target: MutableMap<Wheel, Double?>, wheel: Wheel, value: Float?) {
+            target[wheel] = value?.toDouble()?.takeIf { it > 0.0 }
+            if (pressure.size + low.size == expected) finish()
+        }
+        val tire = runCatching { vehicle.getTire() }.getOrElse {
+            AppLog.error("signal.tire.exception", it)
+            finish()
+            return
+        }
+        for (wheel in Wheel.entries) {
+            val area = WheelArea(toWheelValue(wheel))
+            runCatching {
+                tire.getTirePressure(
+                    area,
+                    { v -> handler.post { put(pressure, wheel, v) } },
+                    { e -> handler.post { AppLog.warn("signal.tire.error", "wheel" to wheel, "error" to e); put(pressure, wheel, null) } },
+                )
+                tire.getLowTirePressure(
+                    area,
+                    { v -> handler.post { put(low, wheel, v) } },
+                    { e -> handler.post { AppLog.warn("signal.tire.low.error", "wheel" to wheel, "error" to e); put(low, wheel, null) } },
+                )
+            }.onFailure {
+                AppLog.error("signal.tire.exception", it)
+                pressure.putIfAbsent(wheel, null)
+                low.putIfAbsent(wheel, null)
+            }
+        }
+        if (pressure.size + low.size == expected) finish()
+        handler.postDelayed(finish, READ_TIMEOUT_MS)
+    }
+
     override fun onTripStarted() {
         arrivedName = null
     }
@@ -150,6 +198,13 @@ class PleosSignals(context: Context) : VehicleSignals {
          * 실차에서 값이 오면 코드 변경 없이 그대로 채워진다.
          */
         fun validOdometer(km: Float?): Double? = km?.toDouble()?.takeIf { it > 0.0 }
+
+        fun toWheelValue(wheel: Wheel): WheelValue = when (wheel) {
+            Wheel.LEFT_FRONT -> WheelValue.LEFT_FRONT
+            Wheel.RIGHT_FRONT -> WheelValue.RIGHT_FRONT
+            Wheel.LEFT_REAR -> WheelValue.LEFT_REAR
+            Wheel.RIGHT_REAR -> WheelValue.RIGHT_REAR
+        }
 
         fun toGear(gear: VehicleGear?): Gear = when (gear) {
             null, VehicleGear.GEAR_UNKNOWN -> Gear.UNKNOWN

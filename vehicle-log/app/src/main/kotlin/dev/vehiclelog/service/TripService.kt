@@ -16,6 +16,7 @@ import dev.vehiclelog.signal.ReplaySignals
 import dev.vehiclelog.signal.TripPoint
 import dev.vehiclelog.signal.VehicleSignals
 import dev.vehiclelog.trip.Gear
+import dev.vehiclelog.trip.TireCheck
 import dev.vehiclelog.trip.TripDetector
 import dev.vehiclelog.trip.TripEvent
 import dev.vehiclelog.ui.TripEndActivity
@@ -69,6 +70,7 @@ class TripService : Service() {
             TripEvent.STARTED -> signals.readPoint { point ->
                 signals.onTripStarted()
                 io.execute { recordStart(point) }
+                checkTires()
             }
             // TODO: 실차에서 시작 조회가 종료 조회보다 늦게 끝나면 순서가 뒤집힐 수 있다 (조회 제한 시간 3초 안의 짧은 운행)
             TripEvent.ENDED -> signals.readPoint { point -> io.execute { recordEnd(point) } }
@@ -80,6 +82,17 @@ class TripService : Service() {
         val id = store.startTrip(point)
         openTripId = id
         AppLog.info("trip.started", "id" to id, "odometerKm" to point.odometerKm)
+    }
+
+    /** 출발할 때 네 바퀴 공기압을 비교해 이상이 있으면 음성으로 알린다. */
+    private fun checkTires() {
+        signals.readTires { reading ->
+            val result = TireCheck.evaluate(reading)
+            val summary = TireCheck.summary(result)
+            TireStatus.save(this, summary, System.currentTimeMillis())
+            AppLog.info("tire.checked", "measured" to result.measured, "low" to result.low, "uneven" to result.uneven)
+            TireCheck.message(result)?.let(announcer::speak)
+        }
     }
 
     private fun recordEnd(point: TripPoint) {

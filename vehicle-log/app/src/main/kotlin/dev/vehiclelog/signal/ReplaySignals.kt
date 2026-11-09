@@ -5,6 +5,8 @@ import android.os.Handler
 import android.os.Looper
 import dev.vehiclelog.AppLog
 import dev.vehiclelog.trip.Gear
+import dev.vehiclelog.trip.TireReading
+import dev.vehiclelog.trip.Wheel
 import org.json.JSONArray
 
 /** 재생 시나리오의 한 단계. 앞 단계에서 delayMs 뒤에 이 상태가 된다. */
@@ -15,6 +17,8 @@ data class ReplayStep(
     val latitude: Double?,
     val longitude: Double?,
     val placeName: String?,
+    /** 앞왼·앞오·뒤왼·뒤오 순서. 없으면 공기압 미수신으로 본다 */
+    val tires: List<Double?> = emptyList(),
 )
 
 /**
@@ -45,6 +49,13 @@ class ReplaySignals(private val steps: List<ReplayStep>) : VehicleSignals {
         callback(TripPoint(System.currentTimeMillis(), step?.odometerKm, step?.latitude, step?.longitude, step?.placeName))
     }
 
+    override fun readTires(callback: (TireReading) -> Unit) {
+        val tires = current?.tires.orEmpty()
+        val pressure = Wheel.entries.withIndex().associate { (i, w) -> w to tires.getOrNull(i) }
+        // 재생 시나리오에는 저압 기준값이 없다(상대 비교만 시연)
+        callback(TireReading(pressure, Wheel.entries.associateWith { null }))
+    }
+
     override fun onTripStarted() = Unit
 
     override fun stop() {
@@ -70,6 +81,9 @@ class ReplaySignals(private val steps: List<ReplayStep>) : VehicleSignals {
                     latitude = o.optDouble("lat").takeUnless { it.isNaN() },
                     longitude = o.optDouble("lon").takeUnless { it.isNaN() },
                     placeName = o.optString("place").takeIf { it.isNotBlank() },
+                    tires = o.optJSONArray("tires")?.let { t ->
+                        List(t.length()) { j -> t.optDouble(j).takeUnless { it.isNaN() } }
+                    }.orEmpty(),
                 )
             }
         }
