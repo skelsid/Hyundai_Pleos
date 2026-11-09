@@ -26,6 +26,7 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
+        android:icon="@mipmap/ic_launcher"
         android:label="차량운행기록"
         android:supportsRtl="true">
 

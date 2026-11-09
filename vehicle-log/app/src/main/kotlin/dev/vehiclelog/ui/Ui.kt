@@ -1,6 +1,7 @@
 package dev.vehiclelog.ui
 
 import android.content.Context
+import android.graphics.Color
 import android.text.InputType
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -21,8 +22,17 @@ internal object Ui {
     private const val BUTTON_MIN_HEIGHT_PX = 130
     private const val BUTTON_MAX_LINES = 4
 
+    // 기기 기본 테마에 맡기면 어두운 배경에 회색 글씨가 나와 읽기 어렵다. 색을 직접 정한다 (본문 대비 14:1 이상, 힌트 7:1)
+    private val BACKGROUND = Color.rgb(0x12, 0x12, 0x12)
+    private val TEXT_PRIMARY = Color.WHITE
+    private val TEXT_SECONDARY = Color.rgb(0xE0, 0xE0, 0xE0)
+    private val TEXT_HINT = Color.rgb(0xA0, 0xA0, 0xA0)
+
     fun screen(context: Context, content: LinearLayout): ScrollView =
-        ScrollView(context).apply { addView(content, MATCH_PARENT, WRAP_CONTENT) }
+        ScrollView(context).apply {
+            setBackgroundColor(BACKGROUND)
+            addView(content, MATCH_PARENT, WRAP_CONTENT)
+        }
 
     fun column(context: Context): LinearLayout = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
@@ -41,12 +51,14 @@ internal object Ui {
     fun title(context: Context, text: String): TextView = TextView(context).apply {
         this.text = text
         textSize = TITLE_SP
+        setTextColor(TEXT_PRIMARY)
         layoutParams = spaced()
     }
 
     fun body(context: Context, text: String): TextView = TextView(context).apply {
         this.text = text
         textSize = BODY_SP
+        setTextColor(TEXT_SECONDARY)
         layoutParams = spaced()
     }
 
@@ -66,6 +78,8 @@ internal object Ui {
         this.hint = hint
         setText(value)
         textSize = BODY_SP
+        setTextColor(TEXT_PRIMARY)
+        setHintTextColor(TEXT_HINT)
         isSingleLine = true
         inputType = InputType.TYPE_CLASS_TEXT or (if (caps) InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS else 0)
         layoutParams = spaced()
