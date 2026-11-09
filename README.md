@@ -77,6 +77,8 @@ adb shell am start --user 10 -n dev.vehiclelog/.ui.MainActivity --ez replay true
 adb shell am start --user 10 -n dev.vehiclelog/.ui.MainActivity --ez replay false --activity-clear-top
 ```
 
+- 명령을 보내면 앱에 확인 창이 뜬다. [바꾸기]를 눌러야 바뀐다(다른 앱이 몰래 가짜 신호로 바꾸지 못하게).
+- 재생 모드의 운행도 실제 기록과 같은 저장소에 쌓인다. 실차에서는 켜지 않는다.
 - 에뮬레이터의 사용자 번호는 10 이다(`adb shell am get-current-user`). 실차에서는 `--user` 를 빼거나 해당 번호를 쓴다.
 - 앱 로그: `adb logcat -s VehicleLog`
 

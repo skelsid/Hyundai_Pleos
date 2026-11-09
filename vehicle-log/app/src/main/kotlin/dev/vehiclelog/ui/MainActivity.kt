@@ -1,6 +1,7 @@
 package dev.vehiclelog.ui
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
@@ -17,7 +18,7 @@ import java.util.concurrent.Executors
 
 /**
  * 첫 화면. 설치 직후에는 부팅 이벤트가 없으므로 여기서 운행 감지를 시작한다.
- * 시연용 재생 모드: `adb shell am start --user 10 -n dev.vehiclelog/.ui.MainActivity --ez replay true`
+ * 시연용 재생 모드: `adb shell am start --user 10 -n dev.vehiclelog/.ui.MainActivity --ez replay true` 뒤 확인 창에서 [바꾸기]
  */
 class MainActivity : Activity() {
 
@@ -51,15 +52,35 @@ class MainActivity : Activity() {
         refresh()
     }
 
+    /**
+     * 화면이 외부에 열려 있어(exported) 다른 앱도 이 extra 를 보낼 수 있다.
+     * 몰래 가짜 신호로 바뀌지 않도록 사람이 확인 창에서 눌러야만 바꾼다.
+     */
     private fun applyReplayExtra(intent: Intent?) {
         if (intent?.hasExtra(EXTRA_REPLAY) != true) return
         val enabled = intent.getBooleanExtra(EXTRA_REPLAY, false)
+        // 화면을 다시 만들 때 같은 요청으로 또 묻지 않게 지운다
+        intent.removeExtra(EXTRA_REPLAY)
         if (enabled == Settings.replayMode(this)) return
+        val message = if (enabled) {
+            "시연 모드(재생 신호)로 바꿀까요?\n실차 신호 대신 시연용 가짜 운행이 기록에 추가됩니다."
+        } else {
+            "실차 신호로 바꿀까요?"
+        }
+        AlertDialog.Builder(this)
+            .setMessage(message)
+            .setPositiveButton("바꾸기") { _, _ -> setReplay(enabled) }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    private fun setReplay(enabled: Boolean) {
         Settings.setReplayMode(this, enabled)
         AppLog.info("settings.replay", "enabled" to enabled)
         // 신호 출처는 서비스 생성 시 정하므로 다시 띄운다
         stopService(Intent(this, TripService::class.java))
         TripService.start(this)
+        refresh()
     }
 
     private fun refresh() {
