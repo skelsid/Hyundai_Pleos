@@ -21,6 +21,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- 운행 종료 알림. 앱이 뒤에 있으면 화면을 직접 못 띄우므로 전체 화면 알림으로 연다 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
         android:label="차량운행기록"
@@ -38,6 +41,23 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.TripEndActivity"
+            android:exported="false"
+            android:launchMode="singleTop">
+            <!-- 입력 칸 없이 큰 버튼만 있어 주행 중 열려도 막히지 않게 한다 -->
+            <meta-data
+                android:name="distractionOptimized"
+                android:value="true" />
+        </activity>
+        <!-- 입력 칸이 있는 화면은 주행 중 시스템이 막도록 distractionOptimized 를 두지 않는다 -->
+        <activity
+            android:name=".ui.UsersActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.VehicleInfoActivity"
+            android:exported="false" />
 
         <receiver
             android:name=".service.BootReceiver"

@@ -1,0 +1,90 @@
+package dev.vehiclelog.ui
+
+import android.app.Activity
+import android.app.AlertDialog
+import android.os.Bundle
+import android.widget.LinearLayout
+import android.widget.Toast
+import dev.vehiclelog.AppLog
+import dev.vehiclelog.data.TripStore
+import dev.vehiclelog.data.User
+import java.util.concurrent.Executors
+
+/**
+ * 사용자 후보 관리. 운행 종료 화면에서 이 목록 중에 고른다.
+ * 입력 칸이 있으므로 주행 중에는 시스템이 막는다 (distractionOptimized 아님).
+ */
+class UsersActivity : Activity() {
+
+    private val io = Executors.newSingleThreadExecutor()
+    private lateinit var list: LinearLayout
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val root = Ui.column(this)
+        root.addView(Ui.title(this, "사용자 관리"))
+        val name = Ui.input(this, "이름")
+        val department = Ui.input(this, "부서 (선택)")
+        root.addView(name)
+        root.addView(department)
+        root.addView(
+            Ui.button(this, "추가") {
+                val nameText = name.text.toString().trim()
+                if (nameText.isEmpty()) {
+                    Toast.makeText(this, "이름을 입력해 주세요", Toast.LENGTH_SHORT).show()
+                    return@button
+                }
+                val departmentText = department.text.toString().trim().ifEmpty { null }
+                io.execute {
+                    val id = TripStore.get(this).addUser(nameText, departmentText)
+                    AppLog.info("user.added", "id" to id)
+                    runOnUiThread {
+                        name.text.clear()
+                        department.text.clear()
+                        reload()
+                    }
+                }
+            },
+        )
+        list = Ui.column(this)
+        root.addView(list)
+        setContentView(Ui.screen(this, root))
+        reload()
+    }
+
+    private fun reload() {
+        io.execute {
+            val users = TripStore.get(this).activeUsers()
+            runOnUiThread { render(users) }
+        }
+    }
+
+    private fun render(users: List<User>) {
+        if (isFinishing) return
+        list.removeAllViews()
+        if (users.isEmpty()) list.addView(Ui.body(this, "등록된 사용자가 없습니다."))
+        for (user in users) {
+            val label = user.name + (user.department?.let { " ($it)" } ?: "")
+            list.addView(Ui.row(this, Ui.body(this, label), Ui.button(this, "삭제") { confirmRemove(user, label) }))
+        }
+    }
+
+    private fun confirmRemove(user: User, label: String) {
+        AlertDialog.Builder(this)
+            .setMessage("$label 을(를) 후보에서 뺄까요? 지난 운행 기록은 그대로 남습니다.")
+            .setPositiveButton("빼기") { _, _ ->
+                io.execute {
+                    TripStore.get(this).deactivateUser(user.id)
+                    AppLog.info("user.deactivated", "id" to user.id)
+                    runOnUiThread { reload() }
+                }
+            }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    override fun onDestroy() {
+        io.shutdown()
+        super.onDestroy()
+    }
+}
