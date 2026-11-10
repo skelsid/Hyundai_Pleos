@@ -4,14 +4,12 @@ import android.app.Activity
 import android.os.Bundle
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
-import dev.vehiclelog.AppLog
 import dev.vehiclelog.data.Trip
-import dev.vehiclelog.export.LogbookExport
 import dev.vehiclelog.data.TripStore
 import dev.vehiclelog.trip.MonthTrip
 import dev.vehiclelog.trip.TripMath
 import dev.vehiclelog.trip.TripText
+import dev.vehiclelog.trip.YearMonth
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
@@ -44,7 +42,7 @@ class MonthlyActivity : Activity() {
         root.addView(monthLabel)
         root.addView(Ui.row(this, Ui.button(this, "◀ 이전 달") { moveMonth(-1) }, Ui.button(this, "다음 달 ▶") { moveMonth(1) }))
         root.addView(summary)
-        root.addView(Ui.button(this, "엑셀로 내보내기") { exportMonth() })
+        root.addView(Ui.button(this, "내보내기 (관리자 메일)") { startActivity(SendActivity.intent(this, YearMonth(year, month))) })
         root.addView(list)
         setContentView(Ui.screen(this, root))
     }
@@ -66,22 +64,6 @@ class MonthlyActivity : Activity() {
         year = index / MONTHS
         month = index % MONTHS + 1
         load()
-    }
-
-    private fun exportMonth() {
-        val shownYear = year
-        val shownMonth = month
-        io.execute {
-            val message = runCatching { LogbookExport.export(this, shownYear, shownMonth, zone) }
-                .fold(
-                    onSuccess = { "저장했습니다: ${it.absolutePath}" },
-                    onFailure = {
-                        AppLog.error("export.failed", it)
-                        "엑셀 저장에 실패했습니다"
-                    },
-                )
-            runOnUiThread { Toast.makeText(this, message, Toast.LENGTH_LONG).show() }
-        }
     }
 
     private fun load() {

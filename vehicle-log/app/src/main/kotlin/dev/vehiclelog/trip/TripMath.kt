@@ -43,6 +43,15 @@ object TripMath {
         )
     }
 
+    /** 시각들이 속한 (년, 월)별 개수. 최근 달이 먼저. 내보낼 달 목록에 쓴다. */
+    fun monthCounts(times: List<Long>, zone: TimeZone): List<Pair<YearMonth, Int>> {
+        val calendar = Calendar.getInstance(zone)
+        return times.groupingBy {
+            calendar.timeInMillis = it
+            YearMonth(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1)
+        }.eachCount().toList().sortedByDescending { it.first }
+    }
+
     /** 그 달 1일 0시부터 다음 달 1일 0시 직전까지의 [시작, 끝) 밀리초. month 는 1~12. */
     fun monthRange(year: Int, month: Int, zone: TimeZone): Pair<Long, Long> {
         require(month in 1..12) { "month 는 1~12: $month" }
@@ -54,6 +63,11 @@ object TripMath {
         calendar.add(Calendar.MONTH, 1)
         return start to calendar.timeInMillis
     }
+}
+
+/** month 는 1~12. */
+data class YearMonth(val year: Int, val month: Int) : Comparable<YearMonth> {
+    override fun compareTo(other: YearMonth): Int = compareValuesBy(this, other, { it.year }, { it.month })
 }
 
 data class TripDistance(val distanceKm: Double?, val nonBusiness: Boolean)

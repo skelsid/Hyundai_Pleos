@@ -6,6 +6,7 @@ secrets.properties
 *.jks
 *.keystore
 keystore.properties
+mail.properties
 google-services.json
 
 # Gradle / 빌드 산출물

@@ -123,8 +123,9 @@ class TripService : Service() {
     }
 
     /**
-     * 운행 종료 화면을 띄운다. 앱 화면이 떠 있으면 바로 열리고,
-     * 백그라운드에서는 시스템이 화면 띄우기를 막으므로 전체 화면 알림이 대신한다.
+     * 운행 종료 화면을 띄운다. 앱 화면이 떠 있거나 "다른 앱 위에 표시"가 허용돼 있으면 바로 열린다.
+     * 그 밖에는 시스템이 뒤에서 화면 띄우기를 막으므로 전체 화면 알림이 대신한다 (알림 허용 필요).
+     * 화면이 열리면 TripEndActivity 가 알림을 지운다.
      */
     private fun showTripEnd(tripId: Long) {
         val intent = TripEndActivity.intent(this, tripId)
@@ -135,11 +136,20 @@ class TripService : Service() {
             .setSmallIcon(android.R.drawable.ic_menu_edit)
             .setContentTitle("운행이 끝났습니다")
             .setContentText("사용자와 업무용 여부를 선택해 주세요")
+            .setCategory(Notification.CATEGORY_REMINDER)
             .setContentIntent(pending)
             .setFullScreenIntent(pending, true)
             .setAutoCancel(true)
             .build()
-        getSystemService(NotificationManager::class.java).notify(TRIP_END_NOTIFICATION_ID, notification)
+        AppLog.info(
+            "trip.end.screen",
+            "overlay" to ScreenAccess.canDrawOverApps(this),
+            "notifications" to ScreenAccess.notificationsAllowed(this),
+            "fullScreen" to ScreenAccess.fullScreenAllowed(this),
+        )
+        runCatching { getSystemService(NotificationManager::class.java).notify(TRIP_END_NOTIFICATION_ID, notification) }
+            .onFailure { AppLog.warn("trip.end.notify.failed", "error" to it) }
+        // 뒤에서 막힌 경우 예외 없이 무시되고 logcat 에 "Background activity launch blocked" 가 남는다
         runCatching { startActivity(intent) }
             .onFailure { AppLog.warn("trip.end.screen.blocked", "error" to it) }
     }

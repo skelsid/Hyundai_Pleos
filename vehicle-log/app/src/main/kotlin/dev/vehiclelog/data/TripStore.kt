@@ -153,6 +153,12 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
             arrayOf(startMillis.toString(), endMillis.toString()), null, null, "start_time ASC",
         ).use { c -> buildList { while (c.moveToNext()) add(c.toTrip()) } }
 
+    /** 끝난 운행의 시작 시각 전부. 내보낼 달 목록을 만들 때 쓴다. */
+    fun endedTripStartTimes(): List<Long> =
+        readableDatabase.rawQuery("SELECT start_time FROM trips WHERE end_time IS NOT NULL", null).use { c ->
+            buildList { while (c.moveToNext()) add(c.getLong(0)) }
+        }
+
     /** 빠진 후보까지 포함한 모든 사용자 이름. 지난 운행의 사용자를 보여 줄 때 쓴다. */
     fun userNames(): Map<Long, String> =
         readableDatabase.rawQuery("SELECT id, name FROM users", null).use { c ->

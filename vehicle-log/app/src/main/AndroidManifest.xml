@@ -24,6 +24,10 @@
     <!-- 운행 종료 알림. 앱이 뒤에 있으면 화면을 직접 못 띄우므로 전체 화면 알림으로 연다 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- "다른 앱 위에 표시" 허용이 있으면 앱이 뒤에 있어도 종료 화면을 바로 띄울 수 있다 (사용자가 설정에서 허용) -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- 운행기록표를 관리자 메일로 보낸다 (Gmail SMTP) -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- 운행 DB 에 사용자 이름·위치가 있어 기기 백업(클라우드·adb backup)으로 빠져나가지 않게 막는다 -->
     <application
@@ -64,7 +68,18 @@
                 android:name="distractionOptimized"
                 android:value="true" />
         </activity>
+        <activity
+            android:name=".ui.SendActivity"
+            android:exported="false">
+            <!-- 달 고르기·보내기 버튼만 있다 -->
+            <meta-data
+                android:name="distractionOptimized"
+                android:value="true" />
+        </activity>
         <!-- 입력 칸이 있는 화면은 주행 중 시스템이 막도록 distractionOptimized 를 두지 않는다 -->
+        <activity
+            android:name=".ui.AdminActivity"
+            android:exported="false" />
         <activity
             android:name=".ui.UsersActivity"
             android:exported="false" />
