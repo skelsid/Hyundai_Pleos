@@ -128,7 +128,9 @@ case "$MODE" in
     done < <(git log --all --format='%(trailers:key=Co-authored-by,valueonly)' \
                | grep -oE '<[^>]+>' | tr -d '<>' | sort -u)
     if [[ "$MODE" == "--history" ]]; then
-      mapfile -t revs < <(git rev-list --all)
+      # mapfile 은 bash 4 부터라 macOS 기본 bash(3.2)에 없다. 한 줄씩 읽는다
+      revs=()
+      while IFS= read -r rev; do revs+=("$rev"); done < <(git rev-list --all)
       scan_tree "${revs[@]}"
       scan_office history
     else
