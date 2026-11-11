@@ -30,6 +30,7 @@ class MainActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var classifyButton: Button
     private lateinit var screenAccessButton: Button
+    private lateinit var replayButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +46,9 @@ class MainActivity : Activity() {
         root.addView(Ui.button(this, "관리자 정보") { startActivity(AdminActivity.intent(this)) })
         screenAccessButton = Ui.button(this, "운행 종료 화면 자동 표시 켜기") { askScreenAccess() }
         root.addView(screenAccessButton)
+        // 에뮬레이터는 기어·주행거리를 바꿀 수 없다. 심사·시연 때 adb 없이 켤 수 있게 화면에 둔다
+        replayButton = Ui.button(this, "") { confirmReplay(!Settings.replayMode(this)) }
+        root.addView(replayButton)
         setContentView(Ui.screen(this, root))
         applyReplayExtra(intent)
         TripService.start(this)
@@ -119,6 +123,10 @@ class MainActivity : Activity() {
         // 화면을 다시 만들 때 같은 요청으로 또 묻지 않게 지운다
         intent.removeExtra(EXTRA_REPLAY)
         if (enabled == Settings.replayMode(this)) return
+        confirmReplay(enabled)
+    }
+
+    private fun confirmReplay(enabled: Boolean) {
         val message = if (enabled) {
             "시연 모드(재생 신호)로 바꿀까요?\n실차 신호 대신 시연용 가짜 운행이 기록에 추가됩니다."
         } else {
@@ -158,6 +166,7 @@ class MainActivity : Activity() {
                     "타이어 공기압: $tireText\n종료 화면 자동 표시: $screen"
                 // 다른 앱 위에 표시까지 받으면 더 물을 게 없으므로 버튼을 숨긴다
                 screenAccessButton.visibility = if (ScreenAccess.canDrawOverApps(this)) android.view.View.GONE else android.view.View.VISIBLE
+                replayButton.text = if (replay) "시연 모드 끄기 (실차 신호로)" else "시연 모드 켜기 (가짜 운행 재생)"
                 classifyButton.text = "미분류 운행 분류 (${unclassified}건)"
                 classifyButton.isEnabled = unclassified > 0
             }

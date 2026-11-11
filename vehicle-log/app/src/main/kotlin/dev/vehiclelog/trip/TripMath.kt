@@ -14,6 +14,25 @@ object TripMath {
     }
 
     /**
+     * 운행으로 볼 수 없는 짧은 움직임인가 (주차 자리 옮기기, 기어만 넣었다 뺀 경우).
+     * 이런 것까지 종료 화면을 띄우면 운전자가 귀찮아서 끄게 되므로 기록하지 않고 버린다.
+     * 기준은 가정값이다: 거리를 알면 [TRIVIAL_KM] 미만이면서 [TRIVIAL_WITH_DISTANCE_MS] 미만,
+     * 거리를 모르면 [TRIVIAL_WITHOUT_DISTANCE_MS] 미만. 계기판 눈금이 1km 단위여도 몇 분 넘게 달린 운행은 남는다.
+     */
+    fun isTrivial(startOdometerKm: Double?, endOdometerKm: Double?, durationMillis: Long): Boolean {
+        val km = distanceKm(startOdometerKm, endOdometerKm)
+        return if (km != null) {
+            km < TRIVIAL_KM && durationMillis < TRIVIAL_WITH_DISTANCE_MS
+        } else {
+            durationMillis < TRIVIAL_WITHOUT_DISTANCE_MS
+        }
+    }
+
+    const val TRIVIAL_KM = 0.1
+    const val TRIVIAL_WITH_DISTANCE_MS = 3 * 60_000L
+    const val TRIVIAL_WITHOUT_DISTANCE_MS = 60_000L
+
+    /**
      * 업무사용비율 = 업무용 거리 / 전체 거리 (국세청 고시 서식 ⑬).
      * 출·퇴근은 업무용에 포함한다. 거리 계산이 안 된 운행은 양쪽에서 모두 뺀다.
      *

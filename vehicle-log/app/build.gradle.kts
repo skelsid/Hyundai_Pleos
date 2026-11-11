@@ -1,4 +1,3 @@
-import java.io.InputStreamReader
 import java.util.Properties
 
 plugins {
@@ -8,11 +7,6 @@ plugins {
 // 릴리스 서명 정보는 저장소 밖(커밋 금지) keystore.properties 에서 읽는다. 없으면 서명 없는 릴리스가 나온다
 val keystoreFile = rootProject.file("keystore.properties")
 val keystore = Properties().apply { if (keystoreFile.exists()) keystoreFile.inputStream().use { load(it) } }
-
-// 운행기록표를 보내는 Gmail 발신 계정도 저장소 밖(커밋 금지) mail.properties 에서 읽는다. 없으면 메일 보내기가 "발신 계정 미설정" 으로 실패한다
-val mailFile = rootProject.file("mail.properties")
-val mail = Properties().apply { if (mailFile.exists()) mailFile.inputStream().use { load(InputStreamReader(it, Charsets.UTF_8)) } }
-fun quoted(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 android {
     namespace = "dev.vehiclelog"
@@ -25,15 +19,6 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
-
-        buildConfigField("String", "MAIL_USER", quoted(mail.getProperty("mailUser", "").trim()))
-        // Gmail 앱 비밀번호는 4자리씩 띄어 보여 주므로 공백을 지운다
-        buildConfigField("String", "MAIL_APP_PASSWORD", quoted(mail.getProperty("mailAppPassword", "").replace(" ", "")))
-        buildConfigField("String", "MAIL_FROM_NAME", quoted(mail.getProperty("mailFromName", "Hyundai Vehicle Log").trim()))
-    }
-
-    buildFeatures {
-        buildConfig = true
     }
 
     signingConfigs {

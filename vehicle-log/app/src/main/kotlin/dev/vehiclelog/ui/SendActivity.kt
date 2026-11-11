@@ -44,7 +44,7 @@ class SendActivity : Activity() {
         root.addView(Ui.title(this, "운행기록표 내보내기"))
         adminText = Ui.body(this, "")
         root.addView(adminText)
-        root.addView(Ui.button(this, "받는 사람 바꾸기") { startActivity(AdminActivity.intent(this)) })
+        root.addView(Ui.button(this, "받는 사람·보내는 계정 바꾸기") { startActivity(AdminActivity.intent(this)) })
         root.addView(Ui.body(this, "보낼 달을 고르세요"))
         monthList = Ui.column(this).apply { setPadding(0, 0, 0, 0) }
         root.addView(monthList)
@@ -134,9 +134,9 @@ class SendActivity : Activity() {
     }
 
     private fun failureText(error: Throwable): String = when ((error as? MailException)?.kind) {
-        MailException.Kind.NOT_CONFIGURED -> "보내는 메일 계정이 앱에 설정되지 않았습니다. 앱 담당자에게 알려 주세요."
+        MailException.Kind.NOT_CONFIGURED -> "보내는 메일 계정이 없습니다. [받는 사람·보내는 계정 바꾸기]에서 보내는 Gmail 계정을 입력해 주세요."
         MailException.Kind.NETWORK -> "인터넷에 연결되지 않아 보내지 못했습니다. 연결을 확인한 뒤 다시 보내 주세요."
-        MailException.Kind.LOGIN -> "보내는 메일 계정에 로그인하지 못했습니다. 앱 담당자에게 알려 주세요."
+        MailException.Kind.LOGIN -> "보내는 Gmail 계정에 로그인하지 못했습니다. [받는 사람·보내는 계정 바꾸기]에서 주소와 앱 비밀번호를 확인해 주세요."
         MailException.Kind.REJECTED -> "메일 서버가 받지 않았습니다. 받는 사람 메일 주소를 확인해 주세요."
         null -> "엑셀 파일을 만들지 못해 보내지 못했습니다."
     }

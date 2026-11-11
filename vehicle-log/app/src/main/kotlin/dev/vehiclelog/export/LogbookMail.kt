@@ -2,10 +2,11 @@ package dev.vehiclelog.export
 
 import android.content.Context
 import dev.vehiclelog.AppLog
-import dev.vehiclelog.BuildConfig
 import dev.vehiclelog.data.AdminInfo
+import dev.vehiclelog.data.MailAccount
 import dev.vehiclelog.data.VehicleInfo
 import dev.vehiclelog.mail.MailAttachment
+import dev.vehiclelog.mail.MailException
 import dev.vehiclelog.mail.MailMessage
 import dev.vehiclelog.mail.SmtpSender
 import dev.vehiclelog.trip.YearMonth
@@ -20,18 +21,20 @@ object LogbookMail {
 
     fun send(context: Context, months: List<YearMonth>, admin: AdminInfo, zone: TimeZone = TimeZone.getDefault()) {
         require(months.isNotEmpty()) { "보낼 달이 없다" }
+        val account = MailAccount.load(context)
+            ?: throw MailException(MailException.Kind.NOT_CONFIGURED, "발신 계정이 입력되지 않았다")
         val sorted = months.distinct().sorted()
         val files = sorted.map { LogbookExport.export(context, it.year, it.month, zone) }
         val info = VehicleInfo.load(context)
         val message = MailMessage(
-            fromAddress = BuildConfig.MAIL_USER,
-            fromName = BuildConfig.MAIL_FROM_NAME,
+            fromAddress = account.address,
+            fromName = account.fromName,
             to = admin.email,
             subject = subject(info.plate, sorted),
             body = body(admin.name, info, sorted),
             attachments = files.map { MailAttachment(it.name, XLSX, it.readBytes()) },
         )
-        SmtpSender().send(BuildConfig.MAIL_USER, BuildConfig.MAIL_APP_PASSWORD, message)
+        SmtpSender().send(account.address, account.appPassword, message)
         AppLog.info("mail.sent", "months" to sorted.size)
     }
 

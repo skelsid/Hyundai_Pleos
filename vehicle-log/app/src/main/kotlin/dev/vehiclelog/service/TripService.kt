@@ -20,6 +20,7 @@ import dev.vehiclelog.trip.TireCheck
 import dev.vehiclelog.trip.TripDetector
 import dev.vehiclelog.trip.SerialQueue
 import dev.vehiclelog.trip.TripEvent
+import dev.vehiclelog.trip.TripMath
 import dev.vehiclelog.ui.TripEndActivity
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -114,6 +115,13 @@ class TripService : Service() {
             return
         }
         openTripId = null
+        val start = store.trip(id)
+        if (start != null && TripMath.isTrivial(start.startOdometerKm, point.odometerKm, point.timeMillis - start.startTime)) {
+            // 주차 자리 옮기기 같은 짧은 움직임은 묻지 않고 버린다
+            store.deleteTrip(id)
+            AppLog.info("trip.discarded", "id" to id, "durationMs" to (point.timeMillis - start.startTime))
+            return
+        }
         store.endTrip(id, point)
         AppLog.info("trip.ended", "id" to id, "odometerKm" to point.odometerKm, "hasPlace" to (point.placeName != null))
         mainHandler.post {

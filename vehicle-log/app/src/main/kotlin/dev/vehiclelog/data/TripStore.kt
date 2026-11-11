@@ -94,6 +94,11 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
         writableDatabase.update("trips", values, "id = ?", arrayOf(id.toString()))
     }
 
+    /** 운행으로 볼 수 없는 짧은 움직임을 지운다. */
+    fun deleteTrip(id: Long) {
+        writableDatabase.delete("trips", "id = ?", arrayOf(id.toString()))
+    }
+
     fun trip(id: Long): Trip? =
         readableDatabase.query("trips", null, "id = ?", arrayOf(id.toString()), null, null, null)
             .use { if (it.moveToFirst()) it.toTrip() else null }

@@ -4,6 +4,7 @@ import ai.pleos.playground.location.fused.FusedLocation
 import ai.pleos.playground.location.fused.listener.FusedLocationListener
 import ai.pleos.playground.location.fused.model.LocationData
 import ai.pleos.playground.navi.constants.NaviErrorCode
+import ai.pleos.playground.navi.data.CurrentLocationInfo
 import ai.pleos.playground.navi.data.DestinationArrivedInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
@@ -35,6 +36,10 @@ class PleosSignals(context: Context) : VehicleSignals {
 
     // 내비 도착 이벤트로 받은 이름. 운행 종료 시 도착지로 쓴다
     private var arrivedName: String? = null
+    private var naviReady = false
+
+    // 내비에 현재 위치 주소를 물어보고 답을 기다리는 조회들. 답은 리스너로 온다 (메인 스레드에서만 만진다)
+    private val waitingAddress = mutableListOf<PointReading>()
 
     private val gearListener = object : GearSelectionListener {
         override fun onSelected(gear: VehicleGear?) {
@@ -51,6 +56,17 @@ class PleosSignals(context: Context) : VehicleSignals {
             arrivedName = info.name.takeIf { it.isNotBlank() }
             // 장소 이름은 위치 정보라 로그에 남기지 않는다
             AppLog.info("signal.navi.arrived", "hasName" to (arrivedName != null))
+        }
+
+        override fun onCurrentLocationInfo(info: CurrentLocationInfo) {
+            val address = info.address.takeIf { it.isNotBlank() }
+            handler.post {
+                // 주소는 위치 정보라 로그에 남기지 않는다
+                AppLog.info("signal.navi.address", "hasAddress" to (address != null), "waiting" to waitingAddress.size)
+                val readings = waitingAddress.toList()
+                waitingAddress.clear()
+                readings.forEach { it.address(address) }
+            }
         }
 
         override fun onError(code: NaviErrorCode) {
@@ -72,7 +88,10 @@ class PleosSignals(context: Context) : VehicleSignals {
         // 내비가 없어도 운행 기록은 돼야 하므로 기어와 따로 다룬다 (도착지 이름만 빠진다)
         runCatching {
             navi.initialize(
-                { navi.addListener(naviListener) },
+                {
+                    navi.addListener(naviListener)
+                    handler.post { naviReady = true }
+                },
                 { AppLog.warn("signal.navi.init.error", "error" to it) },
             )
         }.onFailure { AppLog.error("signal.navi.init.exception", it) }
@@ -121,6 +140,17 @@ class PleosSignals(context: Context) : VehicleSignals {
                 }
             })
         }.onFailure { AppLog.error("signal.location.exception", it); reading.location(null, null) }
+        // 내비 목적지 없이 다닌 운행도 장소가 남도록 현재 위치의 주소를 내비에 묻는다. 답은 onCurrentLocationInfo 로 온다
+        if (naviReady) {
+            waitingAddress += reading
+            runCatching { navi.getCurrentLocationInfo() }.onFailure {
+                AppLog.error("signal.navi.address.exception", it)
+                waitingAddress -= reading
+                reading.address(null)
+            }
+        } else {
+            reading.address(null)
+        }
         // 한쪽이 응답하지 않아도 운행은 기록해야 하므로 시간이 지나면 받은 값만으로 넘긴다
         handler.postDelayed(reading::finish, READ_TIMEOUT_MS)
     }
@@ -176,6 +206,7 @@ class PleosSignals(context: Context) : VehicleSignals {
     override fun stop() {
         onGear = null
         handler.removeCallbacksAndMessages(null)
+        waitingAddress.clear()
         runCatching { vehicle.getGear().unregisterGearSelection(gearListener) }
         runCatching { navi.removeListener(naviListener) }
         // 서비스 종료 중 예외로 앱이 죽지 않게 각각 잡는다
@@ -184,11 +215,13 @@ class PleosSignals(context: Context) : VehicleSignals {
         runCatching { navi.release() }
     }
 
-    /** 거리·위치 두 조회가 모두 끝나거나 시간이 다 되면 한 번만 콜백한다. */
+    /** 거리·위치·주소 조회가 모두 끝나거나 시간이 다 되면 한 번만 콜백한다. */
     private inner class PointReading(private val callback: (TripPoint) -> Unit) {
         private var odometerDone = false
         private var locationDone = false
+        private var addressDone = false
         private var delivered = false
+        private var address: String? = null
         private var odometerKm: Double? = null
         private var latitude: Double? = null
         private var longitude: Double? = null
@@ -197,20 +230,32 @@ class PleosSignals(context: Context) : VehicleSignals {
         fun odometer(km: Double?) {
             odometerKm = km
             odometerDone = true
-            if (locationDone) finish()
+            finishIfDone()
         }
 
         fun location(lat: Double?, lon: Double?) {
             latitude = lat
             longitude = lon
             locationDone = true
-            if (odometerDone) finish()
+            finishIfDone()
+        }
+
+        fun address(text: String?) {
+            address = text
+            addressDone = true
+            finishIfDone()
+        }
+
+        private fun finishIfDone() {
+            if (odometerDone && locationDone && addressDone) finish()
         }
 
         fun finish() {
             if (delivered) return
             delivered = true
-            callback(TripPoint(timeMillis, odometerKm, latitude, longitude, arrivedName))
+            waitingAddress -= this
+            // 내비가 알려 준 도착지 이름(상호 등)이 있으면 그걸, 없으면 주소를 쓴다
+            callback(TripPoint(timeMillis, odometerKm, latitude, longitude, arrivedName ?: address))
         }
     }
 
