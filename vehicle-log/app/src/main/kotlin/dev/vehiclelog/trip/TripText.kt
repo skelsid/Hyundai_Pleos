@@ -7,8 +7,18 @@ import java.util.Locale
 /** 화면·안내 문구. 값이 없으면 빈칸 대신 '미상', '미수신'으로 보여 준다. */
 object TripText {
 
+    private val WHITESPACE = Regex("""\s+""")
+
     fun route(startPlace: String?, endPlace: String?): String =
         "${startPlace ?: "출발지 미상"} → ${endPlace ?: "도착지 미상"}"
+
+    /** 손으로 넣은 장소 이름. 앞뒤 공백을 지우고 연속 공백을 하나로 줄인다. 비면 null. */
+    fun cleanPlace(text: String): String? =
+        text.trim().replace(WHITESPACE, " ").takeIf { it.isNotEmpty() }
+
+    /** 이전 도착지 후보. 지금 칸에 든 값은 빼고 limit 개까지. */
+    fun placeChoices(recent: List<String>, current: String?, limit: Int): List<String> =
+        recent.filter { it != current }.take(limit)
 
     fun distance(km: Double?): String =
         km?.let { String.format(Locale.KOREA, "%.1fkm", it) } ?: "거리 미수신"

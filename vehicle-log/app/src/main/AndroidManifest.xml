@@ -55,7 +55,7 @@
             android:name=".ui.TripEndActivity"
             android:exported="false"
             android:launchMode="singleTop">
-            <!-- 입력 칸 없이 큰 버튼만 있어 주행 중 열려도 막히지 않게 한다 -->
+            <!-- 주행 중 열려도 막히지 않게 한다. 도착지 입력 칸의 키보드는 주행 중 AAOS 가 막고, 큰 버튼(이전 도착지·분류)은 쓸 수 있다 -->
             <meta-data
                 android:name="distractionOptimized"
                 android:value="true" />

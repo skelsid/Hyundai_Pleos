@@ -6,6 +6,8 @@ import ai.pleos.playground.location.fused.model.LocationData
 import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.data.CurrentLocationInfo
 import ai.pleos.playground.navi.data.DestinationArrivedInfo
+import ai.pleos.playground.navi.data.DestinationInfo
+import ai.pleos.playground.navi.data.RouteStartInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import ai.pleos.playground.vehicle.Vehicle
@@ -34,8 +36,10 @@ class PleosSignals(context: Context) : VehicleSignals {
     private var onGear: ((Gear) -> Unit)? = null
     private var gearAttempts = 0
 
-    // 내비 도착 이벤트로 받은 이름. 운행 종료 시 도착지로 쓴다
-    private var arrivedName: String? = null
+    // 내비에 찍은 목적지(안내 시작·목적지 변경·도착 이벤트로 받는다). 운행 종료 시 도착지로 쓴다 (메인 스레드에서만 만진다)
+    private var destination: String? = null
+    // 경로 안내 중인지. 안내 없이 출발한 운행에 지난 운행의 목적지가 남지 않게 운행 시작 때 본다
+    private var routing = false
     private var naviReady = false
 
     // 내비에 현재 위치 주소를 물어보고 답을 기다리는 조회들. 답은 리스너로 온다 (메인 스레드에서만 만진다)
@@ -51,11 +55,55 @@ class PleosSignals(context: Context) : VehicleSignals {
         }
     }
 
+    // 장소 이름은 위치 정보라 로그에는 받았는지만 남긴다. 리스너는 바인더 스레드에서 올 수 있어 메인 스레드로 넘긴다
     private val naviListener = object : NaviHelperEventListener {
+        override fun onRouteStarted(info: RouteStartInfo) {
+            val name = destinationName(info.name, null)
+            handler.post {
+                routing = true
+                if (name != null) destination = name
+                AppLog.info("signal.navi.route.started", "hasName" to (name != null))
+            }
+        }
+
+        override fun onDestinationChanged() {
+            // 이벤트에 새 목적지가 없어 다시 묻는다. 답은 onDestinationInfo 로 온다
+            requestDestination()
+        }
+
+        // onRouteStateInfo 의 isRouting 은 쓰지 않는다. 에뮬레이터에서 안내 중에도 false 가 왔다 (2026-11-12 실측)
+
+        override fun onDestinationInfo(info: DestinationInfo) {
+            // 안내 중이면 목적지가 오고, 안내를 끈 뒤에는 빈 값이 왔다 (2026-11-12 실측). 다른 앱이 물은 답도 여기로 온다
+            val name = destinationName(info.name, info.address)
+            handler.post {
+                routing = name != null
+                // 빈 값이면 도착해서 안내가 끝난 경우일 수 있어 목적지는 지우지 않는다
+                if (name != null) destination = name
+                AppLog.info("signal.navi.destination", "hasName" to (name != null))
+            }
+        }
+
+        override fun onRouteCancelled() {
+            handler.post {
+                routing = false
+                destination = null
+                AppLog.info("signal.navi.route.cancelled")
+            }
+        }
+
+        override fun onRouteEnded() {
+            // 도착해서 끝난 경우가 많으므로 목적지는 남긴다 (틀리면 운행 종료 화면에서 고친다)
+            handler.post { routing = false }
+        }
+
         override fun onDestinationArrived(info: DestinationArrivedInfo) {
-            arrivedName = info.name.takeIf { it.isNotBlank() }
-            // 장소 이름은 위치 정보라 로그에 남기지 않는다
-            AppLog.info("signal.navi.arrived", "hasName" to (arrivedName != null))
+            val name = destinationName(info.name, info.address)
+            handler.post {
+                routing = false
+                if (name != null) destination = name
+                AppLog.info("signal.navi.arrived", "hasName" to (name != null))
+            }
         }
 
         override fun onCurrentLocationInfo(info: CurrentLocationInfo) {
@@ -91,10 +139,16 @@ class PleosSignals(context: Context) : VehicleSignals {
                 {
                     navi.addListener(naviListener)
                     handler.post { naviReady = true }
+                    // 앱보다 먼저 찍어 둔 목적지도 받도록 한 번 묻는다. 답은 onDestinationInfo 로 온다
+                    requestDestination()
                 },
                 { AppLog.warn("signal.navi.init.error", "error" to it) },
             )
         }.onFailure { AppLog.error("signal.navi.init.exception", it) }
+    }
+
+    private fun requestDestination() {
+        runCatching { navi.getDestinationInfo() }.onFailure { AppLog.error("signal.navi.destination.exception", it) }
     }
 
     /** 부팅 직후엔 차량 서비스 연결이 늦어 예외가 날 수 있다. 서비스가 죽지 않게 잡고 몇 번 다시 시도한다. */
@@ -200,7 +254,8 @@ class PleosSignals(context: Context) : VehicleSignals {
     }
 
     override fun onTripStarted() {
-        arrivedName = null
+        // 출발 전에 찍은 목적지는 남기고, 안내 없이 출발하면 지난 운행의 목적지를 지운다
+        if (!routing) destination = null
     }
 
     override fun stop() {
@@ -254,8 +309,8 @@ class PleosSignals(context: Context) : VehicleSignals {
             if (delivered) return
             delivered = true
             waitingAddress -= this
-            // 내비가 알려 준 도착지 이름(상호 등)이 있으면 그걸, 없으면 주소를 쓴다
-            callback(TripPoint(timeMillis, odometerKm, latitude, longitude, arrivedName ?: address))
+            // 도착지는 내비 목적지(상호 등)가 있으면 그걸, 없으면 주소를 쓴다 (TripPoint.endPlaceName)
+            callback(TripPoint(timeMillis, odometerKm, latitude, longitude, address, destination))
         }
     }
 
@@ -270,6 +325,10 @@ class PleosSignals(context: Context) : VehicleSignals {
          * 실차에서 값이 오면 코드 변경 없이 그대로 채워진다.
          */
         fun validOdometer(km: Float?): Double? = km?.toDouble()?.takeIf { it > 0.0 }
+
+        /** 내비가 준 목적지 이름. 상호가 비어 있으면 주소를 쓰고, 둘 다 비면 null. */
+        fun destinationName(name: String?, address: String?): String? =
+            name?.trim()?.takeIf { it.isNotEmpty() } ?: address?.trim()?.takeIf { it.isNotEmpty() }
 
         fun toWheelValue(wheel: Wheel): WheelValue = when (wheel) {
             Wheel.LEFT_FRONT -> WheelValue.LEFT_FRONT

@@ -3,14 +3,21 @@ package dev.vehiclelog.signal
 import dev.vehiclelog.trip.Gear
 import dev.vehiclelog.trip.TireReading
 
-/** 운행 시작·종료 순간에 남길 값. 읽지 못한 값은 null. */
+/**
+ * 운행 시작·종료 순간에 남길 값. 읽지 못한 값은 null.
+ * placeName 은 지금 있는 곳(주소 등), destinationName 은 내비에 찍은 목적지다.
+ */
 data class TripPoint(
     val timeMillis: Long,
     val odometerKm: Double?,
     val latitude: Double?,
     val longitude: Double?,
     val placeName: String?,
-)
+    val destinationName: String? = null,
+) {
+    /** 도착지로 남길 이름. 내비 목적지가 있으면 그걸, 없으면 지금 있는 곳을 쓴다. */
+    val endPlaceName: String? get() = destinationName ?: placeName
+}
 
 /**
  * 차량 신호 출처. 실차(Pleos SDK)와 시연용 재생을 같은 형태로 다룬다.

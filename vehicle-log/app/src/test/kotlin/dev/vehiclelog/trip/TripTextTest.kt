@@ -65,4 +65,27 @@ class TripTextTest {
     fun test_period_open_showsDriving() = inSeoul {
         assertEquals("11월 9일 09:00 – 운행 중", TripText.period(nineAm, null))
     }
+
+    @Test
+    fun test_cleanPlace_extraSpaces_collapsesAndTrims() {
+        assertEquals("남양 연구소", TripText.cleanPlace("  남양 \t 연구소\n"))
+    }
+
+    @Test
+    fun test_cleanPlace_blank_returnsNull() {
+        assertNull(TripText.cleanPlace(""))
+        assertNull(TripText.cleanPlace("   "))
+    }
+
+    @Test
+    fun test_placeChoices_currentInList_excludesCurrentAndLimits() {
+        val recent = listOf("본사", "남양연구소", "물류센터", "고객사")
+        assertEquals(listOf("본사", "물류센터"), TripText.placeChoices(recent, "남양연구소", 2))
+    }
+
+    @Test
+    fun test_placeChoices_noCurrent_returnsFirstLimit() {
+        assertEquals(listOf("본사"), TripText.placeChoices(listOf("본사", "고객사"), null, 1))
+        assertEquals(emptyList<String>(), TripText.placeChoices(emptyList(), null, 6))
+    }
 }

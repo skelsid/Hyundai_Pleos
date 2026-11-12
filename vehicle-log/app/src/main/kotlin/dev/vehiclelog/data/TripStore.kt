@@ -89,7 +89,7 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
             put("end_odometer", point.odometerKm)
             put("end_lat", point.latitude)
             put("end_lon", point.longitude)
-            put("end_place", point.placeName)
+            put("end_place", point.endPlaceName)
         }
         writableDatabase.update("trips", values, "id = ?", arrayOf(id.toString()))
     }
@@ -113,11 +113,15 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
         readableDatabase.rawQuery("SELECT COUNT(*) FROM trips WHERE $UNCLASSIFIED", null)
             .use { it.moveToFirst(); it.getInt(0) }
 
-    /** 사용자 후보가 없으면 userId 는 null 로 저장한다. 업무용 여부는 반드시 정한다. */
-    fun classify(tripId: Long, userId: Long?, nonBusiness: Boolean) {
+    /**
+     * 사용자 후보가 없으면 userId 는 null 로 저장한다. 업무용 여부는 반드시 정한다.
+     * 도착지는 운행 종료 화면에서 고친 값으로 덮는다 (비우면 null).
+     */
+    fun classify(tripId: Long, userId: Long?, nonBusiness: Boolean, endPlace: String?) {
         val values = ContentValues().apply {
             put("user_id", userId)
             put("non_business", if (nonBusiness) 1 else 0)
+            put("end_place", endPlace)
         }
         writableDatabase.update("trips", values, "id = ?", arrayOf(tripId.toString()))
     }
@@ -172,6 +176,14 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
 
     fun tripCount(): Int =
         readableDatabase.rawQuery("SELECT COUNT(*) FROM trips", null).use { it.moveToFirst(); it.getInt(0) }
+
+    /** 최근 도착지. 같은 이름은 한 번만, 마지막으로 간 순서대로. 운행 종료 화면에서 골라 쓴다. */
+    fun recentEndPlaces(limit: Int): List<String> =
+        readableDatabase.rawQuery(
+            "SELECT end_place FROM trips WHERE end_place IS NOT NULL AND TRIM(end_place) != '' " +
+                "GROUP BY end_place ORDER BY MAX(end_time) DESC LIMIT $limit",
+            null,
+        ).use { c -> buildList { while (c.moveToNext()) add(c.getString(0)) } }
 
     private fun lastEndPlace(): String? =
         readableDatabase.rawQuery(
