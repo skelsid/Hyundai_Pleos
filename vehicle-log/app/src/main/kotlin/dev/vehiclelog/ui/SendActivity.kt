@@ -50,7 +50,7 @@ class SendActivity : Activity() {
         root.addView(monthList)
         status = Ui.body(this, "")
         root.addView(status)
-        sendButton = Ui.button(this, "") { send() }
+        sendButton = Ui.button(this, "", filled = true) { send() }
         root.addView(sendButton)
         setContentView(Ui.screen(this, root))
     }

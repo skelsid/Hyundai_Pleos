@@ -152,7 +152,7 @@ class TripEndActivity : Activity() {
         root.addView(
             Ui.row(
                 this,
-                Ui.button(this, "업무용") { classify(nonBusiness = false) },
+                Ui.button(this, "업무용", filled = true) { classify(nonBusiness = false) },
                 Ui.button(this, "비업무") { classify(nonBusiness = true) },
             ),
         )

@@ -24,7 +24,7 @@ class VehicleInfoActivity : Activity() {
         val department = Ui.input(this, "관리 부서", info.department)
         listOf(corporation, plate, model, vin, department).forEach(root::addView)
         root.addView(
-            Ui.button(this, "저장") {
+            Ui.button(this, "저장", filled = true) {
                 VehicleInfo.save(
                     this,
                     VehicleInfo(

@@ -46,7 +46,7 @@ class UsersActivity : Activity() {
                 }
             },
         )
-        list = Ui.column(this)
+        list = Ui.column(this).apply { setPadding(0, 0, 0, 0) }
         root.addView(list)
         setContentView(Ui.screen(this, root))
         reload()

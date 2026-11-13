@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pleos 밤 테마. 시스템이 밤 모드(uiMode night)일 때 쓴다 -->
+    <style name="Theme.VehicleLog" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:fontFamily">@font/asta_sans</item>
+    </style>
+</resources>

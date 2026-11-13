@@ -45,6 +45,10 @@ vehicle-log/app/src/main/kotlin/dev/vehiclelog/
   ui/       화면 (레이아웃 XML 없이 코드로, 큰 글씨·큰 버튼)
 ```
 
+화면 모양은 [Pleos Connect UI 디자인 가이드](https://document.pleos.ai/en/docs/connect/guide/docs-design/)를 따른다.
+색·글자 크기·버튼 크기와 모서리는 가이드의 토큰 값을 그대로 쓰고, 낮/밤은 시스템 설정을 따른다(`ui/Ui.kt`, `res/values(-night)`).
+글꼴은 가이드가 쓰는 Asta Sans(SIL OFL 1.1)를 앱에 넣었다. 라이선스 전문은 `app/src/main/assets/licenses/AstaSans-OFL.txt`.
+
 ## 빌드
 
 요구: Android Studio(JDK 17 포함), Android SDK 36. Pleos SDK 는 공개 Maven 저장소에서 받는다(`settings.gradle.kts`).

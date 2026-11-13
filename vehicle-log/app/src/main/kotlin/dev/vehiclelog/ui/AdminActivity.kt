@@ -62,7 +62,7 @@ class AdminActivity : Activity() {
         root.addView(senderAddress)
         root.addView(senderPassword)
         root.addView(
-            Ui.button(this, if (firstRun) "등록" else "저장") {
+            Ui.button(this, if (firstRun) "등록" else "저장", filled = true) {
                 val address = email.text.toString().trim()
                 if (name.text.isBlank()) {
                     Toast.makeText(this, "관리자 이름을 입력해 주세요", Toast.LENGTH_SHORT).show()

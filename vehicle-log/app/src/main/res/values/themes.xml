@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pleos 낮 테마. 제목줄(액션바)은 쓰지 않는다: 화면마다 Ui.title 로 제목을 그린다 -->
+    <!-- 글꼴은 Pleos 디자인 가이드의 Asta Sans (SIL OFL 1.1, assets/licenses/AstaSans-OFL.txt) -->
+    <style name="Theme.VehicleLog" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:fontFamily">@font/asta_sans</item>
+    </style>
+</resources>
