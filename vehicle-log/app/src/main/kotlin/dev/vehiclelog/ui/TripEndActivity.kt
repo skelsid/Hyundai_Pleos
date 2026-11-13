@@ -26,6 +26,7 @@ import java.util.concurrent.Executors
  * distractionOptimized 화면은 주행 중 제한을 스스로 지켜야 한다(Pleos driving-restriction-development-guide):
  * 키보드 제한(NO_KEYBOARD)이면 도착지 칸을 Read Only 로 두고, 주행 중에는 설정 화면(사용자 등록)으로 가는 버튼을 끈다.
  * 이전 도착지 버튼과 분류 버튼은 주행 중에도 쓸 수 있다.
+ * 같은 도착지를 전에 분류했으면 많이 고른 쪽을 강조 버튼으로 둔다 (버튼 자리는 그대로).
  * TODO: Pleos 실차에서 주행 중 제한 값이 들어오는지 확인 (실차 검증 보류)
  */
 class TripEndActivity : Activity() {
@@ -110,11 +111,19 @@ class TripEndActivity : Activity() {
             val remaining = store.unclassifiedCount()
             // 지금 운행의 도착지가 목록에 끼면 빼야 하므로 하나 더 읽는다
             val recentPlaces = store.recentEndPlaces(RECENT_PLACE_LIMIT + 1)
-            runOnUiThread { render(target, users, lastUserId, remaining, recentPlaces) }
+            val history = target?.let { t -> t.endPlace?.let { store.recentClassifications(it, t.id, HISTORY_LIMIT) } }.orEmpty()
+            runOnUiThread { render(target, users, lastUserId, remaining, recentPlaces, history) }
         }
     }
 
-    private fun render(target: Trip?, users: List<User>, lastUserId: Long?, remaining: Int, recentPlaces: List<String>) {
+    private fun render(
+        target: Trip?,
+        users: List<User>,
+        lastUserId: Long?,
+        remaining: Int,
+        recentPlaces: List<String>,
+        history: List<Boolean>,
+    ) {
         if (isFinishing) return
         if (target == null) {
             Toast.makeText(this, "분류할 운행이 없습니다", Toast.LENGTH_SHORT).show()
@@ -184,11 +193,17 @@ class TripEndActivity : Activity() {
             refreshUserButtons()
         }
 
+        // 고치러 들어왔으면 지금 분류를, 아니면 같은 도착지의 이전 분류를 강조한다. 둘 다 없으면 업무용
+        val suggested = if (editing) target.nonBusiness else TripText.suggestNonBusiness(history)
+        if (!editing && suggested != null) {
+            root.addView(Ui.body(this, if (suggested) "이 도착지는 주로 비업무로 분류했습니다" else "이 도착지는 주로 업무용으로 분류했습니다"))
+        }
+        val nonBusinessFirst = suggested == true
         root.addView(
             Ui.row(
                 this,
-                Ui.button(this, "업무용", filled = true) { classify(nonBusiness = false) },
-                Ui.button(this, "비업무") { classify(nonBusiness = true) },
+                Ui.button(this, "업무용", filled = !nonBusinessFirst) { classify(nonBusiness = false) },
+                Ui.button(this, "비업무", filled = nonBusinessFirst) { classify(nonBusiness = true) },
             ),
         )
         root.addView(Ui.button(this, "나중에") { finish() })
@@ -255,6 +270,9 @@ class TripEndActivity : Activity() {
         private const val PLACE_BLOCKED_HINT = "주행 중에는 입력할 수 없습니다. 아래에서 고르세요"
         private const val RECENT_PLACE_LIMIT = 6
         private const val PLACES_PER_ROW = 2
+
+        // 업무용 여부 제안에 볼 같은 도착지의 최근 운행 수
+        private const val HISTORY_LIMIT = 5
 
         // 엑셀 칸에 들어가는 장소 이름 길이 상한
         private const val MAX_PLACE_LENGTH = 60

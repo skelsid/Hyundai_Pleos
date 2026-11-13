@@ -28,6 +28,27 @@ class TripTextTest {
     }
 
     @Test
+    fun test_suggestNonBusiness_noHistory_returnsNull() {
+        assertNull(TripText.suggestNonBusiness(emptyList()))
+    }
+
+    @Test
+    fun test_suggestNonBusiness_mostlyNonBusiness_returnsTrue() {
+        assertEquals(true, TripText.suggestNonBusiness(listOf(true)))
+        assertEquals(true, TripText.suggestNonBusiness(listOf(true, false, true)))
+    }
+
+    @Test
+    fun test_suggestNonBusiness_mostlyBusiness_returnsFalse() {
+        assertEquals(false, TripText.suggestNonBusiness(listOf(false, false, true)))
+    }
+
+    @Test
+    fun test_suggestNonBusiness_tie_returnsNull() {
+        assertNull(TripText.suggestNonBusiness(listOf(true, false)))
+    }
+
+    @Test
     fun test_distance_null_returnsMissingLabel() {
         assertEquals("거리 미수신", TripText.distance(null))
         assertEquals("42.3km", TripText.distance(42.3))

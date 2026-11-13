@@ -46,4 +46,19 @@ object TripText {
      */
     fun defaultUserId(userIds: List<Long>, lastUserId: Long?): Long? =
         lastUserId?.takeIf { it in userIds } ?: userIds.singleOrNull()
+
+    /**
+     * 같은 도착지를 최근에 어떻게 분류했는지 보고 기본값을 제안한다 (true = 비업무).
+     * 많은 쪽을 고르고, 기록이 없거나 반반이면 null(제안 없음 → 업무용이 기본).
+     * 자주 가는 거래처는 업무용, 개인 볼일 장소는 비업무로 굳어지므로 한 번 고르면 다음부터 덜 누른다.
+     */
+    fun suggestNonBusiness(recent: List<Boolean>): Boolean? {
+        val nonBusiness = recent.count { it }
+        val business = recent.size - nonBusiness
+        return when {
+            nonBusiness > business -> true
+            business > nonBusiness -> false
+            else -> null
+        }
+    }
 }
