@@ -15,6 +15,7 @@ import java.util.TimeZone
 /**
  * 고른 달들의 운행기록표를 만들어 관리자 메일로 한 통에 보낸다. 메인 스레드가 아닌 곳에서 부른다.
  * 엑셀은 보내기 직전에 다시 만든다 — 그 사이 분류를 고쳤어도 최신 내용이 가게.
+ * 보내고 나면 성공·실패와 상관없이 만든 엑셀을 지운다.
  */
 object LogbookMail {
     private const val XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -24,18 +25,23 @@ object LogbookMail {
         val account = MailAccount.load(context)
             ?: throw MailException(MailException.Kind.NOT_CONFIGURED, "발신 계정이 입력되지 않았다")
         val sorted = months.distinct().sorted()
-        val files = sorted.map { LogbookExport.export(context, it.year, it.month, zone) }
-        val info = VehicleInfo.load(context)
-        val message = MailMessage(
-            fromAddress = account.address,
-            fromName = account.fromName,
-            to = admin.email,
-            subject = subject(info.plate, sorted),
-            body = body(admin.name, info, sorted),
-            attachments = files.map { MailAttachment(it.name, XLSX, it.readBytes()) },
-        )
-        SmtpSender().send(account.address, account.appPassword, message)
-        AppLog.info("mail.sent", "months" to sorted.size)
+        try {
+            val files = sorted.map { LogbookExport.export(context, it.year, it.month, zone) }
+            val info = VehicleInfo.load(context)
+            val message = MailMessage(
+                fromAddress = account.address,
+                fromName = account.fromName,
+                to = admin.email,
+                subject = subject(info.plate, sorted),
+                body = body(admin.name, info, sorted),
+                attachments = files.map { MailAttachment(it.name, XLSX, it.readBytes()) },
+            )
+            SmtpSender().send(account.address, account.appPassword, message)
+            AppLog.info("mail.sent", "months" to sorted.size)
+        } finally {
+            // 중간 달에서 실패해도 앞서 만든 파일까지 지운다
+            AppLog.info("export.cleaned", "deleted" to LogbookExport.deleteFiles(context))
+        }
     }
 
     /** 예: "[차량운행기록] 12가3456 운행기록표 2026년 10월, 11월" */

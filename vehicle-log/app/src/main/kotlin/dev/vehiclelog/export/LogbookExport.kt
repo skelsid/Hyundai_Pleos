@@ -12,11 +12,37 @@ import java.util.Locale
 import java.util.TimeZone
 
 /**
- * 한 달치 운행을 기록표 엑셀로 저장한다. 메인 스레드가 아닌 곳에서 부른다.
- * 저장 위치는 앱 전용 문서 폴더(권한 불필요). 차에서 꺼내는 방법은 TODO: 실차 내보내기 경로 확인(USB·공유).
+ * 한 달치 운행을 기록표 엑셀로 만든다. 메인 스레드가 아닌 곳에서 부른다.
+ * 메일에 붙일 때만 앱 캐시 폴더에 잠깐 만들고, 보낸 뒤 [deleteFiles] 로 지운다.
+ * 사용자 이름·장소가 든 파일을 기기에 남기지 않는다 (Pleos 개인정보 최소 보관).
  */
 object LogbookExport {
     private const val TEMPLATE_ASSET = "logbook_template.xlsx"
+    private const val EXPORT_DIR = "export"
+    private val FILE_NAME = Regex("""VehicleLog_\d{4}-\d{2}\.xlsx(\.tmp)?""")
+
+    /** 이 앱이 만든 기록표 파일 이름인가. 지울 때 다른 파일을 건드리지 않게 이름으로 거른다. */
+    fun isExportFile(name: String): Boolean = FILE_NAME.matches(name)
+
+    /**
+     * 만든 기록표를 모두 지운다. 지운 개수를 돌려준다.
+     * 예전 버전은 앱 문서 폴더(외부 앱 전용 저장소)·내부 export 폴더에 남겼으므로 그곳도 지운다.
+     */
+    fun deleteFiles(context: Context): Int {
+        val dirs = listOfNotNull(
+            File(context.cacheDir, EXPORT_DIR),
+            File(context.filesDir, EXPORT_DIR),
+            context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS),
+        )
+        var deleted = 0
+        for (dir in dirs) {
+            val files = dir.listFiles { file -> file.isFile && isExportFile(file.name) } ?: continue
+            for (file in files) {
+                if (file.delete()) deleted++ else AppLog.warn("export.delete.failed", "file" to file.name)
+            }
+        }
+        return deleted
+    }
 
     fun export(context: Context, year: Int, month: Int, zone: TimeZone = TimeZone.getDefault()): File {
         val (start, end) = TripMath.monthRange(year, month, zone)
@@ -46,7 +72,7 @@ object LogbookExport {
                 nonBusiness = it.nonBusiness,
             )
         }
-        val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: File(context.filesDir, "export")
+        val dir = File(context.cacheDir, EXPORT_DIR)
         dir.mkdirs()
         val file = File(dir, String.format(Locale.ROOT, "VehicleLog_%d-%02d.xlsx", year, month))
         // 쓰다가 실패해도 이전 파일이 깨지지 않게 임시 파일에 쓰고 바꾼다
