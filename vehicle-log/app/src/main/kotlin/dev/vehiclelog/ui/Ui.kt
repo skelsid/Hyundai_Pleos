@@ -1,6 +1,7 @@
 package dev.vehiclelog.ui
 
 import android.app.Activity
+import android.app.Dialog
 import android.content.Context
 import android.content.res.ColorStateList
 import android.content.res.Configuration
@@ -9,16 +10,19 @@ import android.graphics.Outline
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.InsetDrawable
+import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.StateListDrawable
+import android.hardware.display.DisplayManager
 import android.os.Build
 import android.text.InputType
 import android.util.TypedValue
+import android.view.Display
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.ViewOutlineProvider
+import android.view.Window
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
@@ -27,72 +31,58 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import dev.vehiclelog.R
+import dev.vehiclelog.ui.PleosTokens as T
+import kotlin.math.roundToInt
 
 /**
  * 차량 화면용 뷰. 레이아웃 XML 없이 코드로 만든다.
  *
- * 색·글자·크기는 Pleos 공식 디자인 자산(Pleos_Connect_design_assets_215.fig)의 변수·컴포넌트 값을 그대로 쓴다.
- * - 크기: form_factor 모드 connect-s (OS 기본 16:9 디스플레이, 에뮬레이터 2560x1440). 값은 px 이고 밀도 160dpi 라 dp = px.
- * - 색: Color 변수의 Light/Dark 모드. 낮/밤은 시스템 설정(uiMode)을 따른다.
- * - 컴포넌트: ivi_basic_button(Large), ivi_text_field(Medium), ivi_title(Main/Depth), List/item.
+ * 모양은 Pleos 공식 디자인 자산(Pleos_Connect_design_assets_215.fig)의 컴포넌트를 옮겼다.
+ * - 크기: PleosTokens (화면 종류 S/W/WF 별 .fig 크기 변수). 화면 종류는 디스플레이 해상도로 고른다 (FormFactor).
+ * - 색: .fig Color 변수의 Light/Dark 값 (아래 Palette). 낮/밤은 시스템 설정(uiMode)을 따른다.
+ * - 컴포넌트: ivi_title(상단바), ivi_basic_button(Large/Medium), ivi_text_field(Medium), List/item, ivi_system_popup(Medium).
  * 화면 바탕(background/primary)은 res/values(-night)/colors.xml, 글꼴 Asta Sans 는 res/font/asta_sans.xml.
  */
 internal object Ui {
-    // 글자 크기/줄높이 (Asta Sans)
-    private const val TITLE_SP = 40f // ivi_title: Bold 40/52
-    private const val TITLE_LINE_SP = 52f
-    private const val TITLE_MAX_LINES = 2
-    private const val BODY_SP = 28f // Body Medium 28/36
-    private const val BODY_LINE_SP = 36f
-    private const val FIELD_SP = 36f // ivi_text_field Medium: Regular 36/44
-    private const val FIELD_LINE_SP = 44f
-    private const val ITEM_TITLE_SP = 30f // List/item: Bold 30/38
-    private const val ITEM_TITLE_LINE_SP = 38f
-    private const val ITEM_SUBTITLE_SP = 26f // List/item 부제: Regular 26/34
-    private const val ITEM_SUBTITLE_LINE_SP = 34f
     private const val WEIGHT_REGULAR = 400
     private const val WEIGHT_BOLD = 700
-
-    // 버튼 (ivi_basic_button, buttons/basic/{large,medium}/*)
-    private class ButtonSize(val heightDp: Int, val radiusDp: Float, val paddingHDp: Int, val paddingVDp: Int, val textSp: Float, val lineSp: Float)
-
-    private val LARGE = ButtonSize(heightDp = 100, radiusDp = 32f, paddingHDp = 40, paddingVDp = 16, textSp = 32f, lineSp = 40f)
-    private val MEDIUM = ButtonSize(heightDp = 80, radiusDp = 24f, paddingHDp = 32, paddingVDp = 16, textSp = 30f, lineSp = 38f)
-    private const val BUTTON_GAP_DP = 16 // gap_horizontal
-    private const val BUTTON_DISABLED_BORDER_DP = 2
+    private const val WEIGHT_EXTRA_BOLD = 800
+    private const val TITLE_MAX_LINES = 2
     private const val BUTTON_MAX_LINES = 4
-
-    // 입력칸 (fields/text/medium/*)
-    private const val FIELD_HEIGHT_DP = 100
-    private const val FIELD_RADIUS_DP = 24f
-    private const val FIELD_PADDING_H_DP = 32
-    private const val FIELD_BORDER_DP = 2 // Enabled 테두리
-    private const val FIELD_FOCUSED_BORDER_DP = 3 // fields/text/medium/border
+    // .fig 의 커서(Focused 상태 'cursor' 3x32). 변수에 묶여 있지 않은 고정 값
     private const val CURSOR_WIDTH_DP = 3
     private const val CURSOR_HEIGHT_DP = 32
-
-    // 상단바 (page_navigation/*)
-    private const val BAR_HEIGHT_DP = 80
-    private const val BAR_GAP_DP = 24 // title/depth_gap_horizontal
-    private const val APP_ICON_DP = 80
-    private const val APP_ICON_RADIUS_DP = 20f
-    private const val APP_ICON_GAP_DP = 16 // menu_group 간격
-    private const val APP_ICON_BORDER_DP = 1
-    private const val BACK_ICON_DP = 56 // title/depth_icon_square
-    private const val BACK_PRESSED_RADIUS_DP = 16f
-
-    // 목록 항목 (vehicle_setting_popup_content/List/item)
-    private const val ITEM_MIN_HEIGHT_DP = 112
-    private const val ITEM_RADIUS_DP = 24f
-    private const val ITEM_PADDING_H_DP = 20
-    private const val ITEM_PADDING_V_DP = 16
-    private const val ITEM_LABEL_PADDING_H_DP = 16
-    private const val ITEM_TEXT_GAP_DP = 4
-
-    // 화면 여백 (page_navigation/padding_extralarge) 과 세로 간격
-    private const val PADDING_DP = 40
-    private const val GAP_DP = 16
     private const val PERCENT_TO_ALPHA = 2.55f
+
+    /** .fig 텍스트 스타일: 크기·줄높이 변수와 굵기. */
+    private class TextStyle(val size: Dimen, val line: Dimen, val weight: Int)
+
+    private val TITLE_LARGE_STRONG = TextStyle(T.TITLE_LARGE_SIZE, T.TITLE_LARGE_LINE, WEIGHT_BOLD) // 상단바 제목
+    private val TITLE_LARGE_EXTRA_STRONG = TextStyle(T.TITLE_LARGE_SIZE, T.TITLE_LARGE_LINE, WEIGHT_EXTRA_BOLD) // 팝업 제목
+    private val TITLE_MEDIUM_NORMAL = TextStyle(T.TITLE_MEDIUM_SIZE, T.TITLE_MEDIUM_LINE, WEIGHT_REGULAR) // 입력칸
+    private val TITLE_SMALL_STRONG = TextStyle(T.TITLE_SMALL_SIZE, T.TITLE_SMALL_LINE, WEIGHT_BOLD) // Large 버튼
+    private val BODY_LARGE_STRONG = TextStyle(T.BODY_LARGE_SIZE, T.BODY_LARGE_LINE, WEIGHT_BOLD) // Medium 버튼, 목록 제목
+    private val BODY_LARGE_NORMAL = TextStyle(T.BODY_LARGE_SIZE, T.BODY_LARGE_LINE, WEIGHT_REGULAR) // 팝업 설명
+    private val BODY_SMALL_NORMAL = TextStyle(T.BODY_SMALL_SIZE, T.BODY_SMALL_LINE, WEIGHT_REGULAR) // 본문·도움말·목록 부제
+
+    /** ivi_basic_button 크기 (Size=Large / Medium). */
+    private class ButtonSize(
+        val height: Dimen,
+        val radius: Dimen,
+        val paddingH: Dimen,
+        val paddingV: Dimen,
+        val minWidth: Dimen,
+        val text: TextStyle,
+    )
+
+    private val LARGE = ButtonSize(
+        T.BUTTON_LARGE_HEIGHT, T.BUTTON_LARGE_RADIUS, T.BUTTON_LARGE_PADDING_H, T.BUTTON_LARGE_PADDING_V, T.BUTTON_LARGE_MIN_WIDTH,
+        TITLE_SMALL_STRONG,
+    )
+    private val MEDIUM = ButtonSize(
+        T.BUTTON_MEDIUM_HEIGHT, T.BUTTON_MEDIUM_RADIUS, T.BUTTON_MEDIUM_PADDING_H, T.BUTTON_MEDIUM_PADDING_V, T.BUTTON_MEDIUM_MIN_WIDTH,
+        BODY_LARGE_STRONG,
+    )
 
     /** Pleos Color 변수. 주석은 .fig 변수 이름. */
     private class Palette(
@@ -107,10 +97,12 @@ internal object Ui {
         val filledEnabled: Int, // button/filled/enabled
         val filledPressed: Int, // button/filled/pressed
         val filledDisabled: Int, // button/filled/disabled
+        val dividerPrimary: Int, // divider/primary
         val dividerSecondary: Int, // divider/secondary
         val fieldBackground: Int, // field/background
         val fieldFocused: Int, // field/focused
         val itemPressed: Int, // surface/basic
+        val popupBackground: Int, // background/popup
     )
 
     private fun alpha(rgb: String, percent: Int): Int {
@@ -130,10 +122,12 @@ internal object Ui {
         filledEnabled = Color.parseColor("#44464E"),
         filledPressed = Color.parseColor("#313236"),
         filledDisabled = alpha("#131417", 5),
+        dividerPrimary = alpha("#131417", 5),
         dividerSecondary = alpha("#131417", 10),
         fieldBackground = Color.parseColor("#FFFFFF"),
         fieldFocused = Color.parseColor("#313236"),
         itemPressed = Color.parseColor("#FFFFFF"),
+        popupBackground = Color.parseColor("#FFFFFF"),
     )
 
     private val DARK = Palette(
@@ -148,10 +142,12 @@ internal object Ui {
         filledEnabled = Color.parseColor("#E0E1E6"),
         filledPressed = Color.parseColor("#C7C9CE"),
         filledDisabled = alpha("#FFFFFF", 5),
+        dividerPrimary = alpha("#FFFFFF", 5),
         dividerSecondary = alpha("#FFFFFF", 10),
         fieldBackground = Color.parseColor("#131417"),
         fieldFocused = Color.parseColor("#EDEEF2"),
         itemPressed = Color.parseColor("#1D1E21"),
+        popupBackground = Color.parseColor("#313236"),
     )
 
     private fun palette(context: Context): Palette {
@@ -159,9 +155,21 @@ internal object Ui {
         return if (night == Configuration.UI_MODE_NIGHT_YES) DARK else LIGHT
     }
 
-    private fun Context.dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+    // 디스플레이는 실행 중에 바뀌지 않으므로 한 번만 읽는다 (UI 스레드에서만 쓴다)
+    private var formFactor: FormFactor? = null
 
-    private fun Context.dp(value: Float): Float = value * resources.displayMetrics.density
+    private fun Context.formFactor(): FormFactor = formFactor ?: run {
+        val display = getSystemService(DisplayManager::class.java)?.getDisplay(Display.DEFAULT_DISPLAY)
+        val mode = display?.mode
+        val detected = if (mode == null) FormFactor.S else FormFactor.of(mode.physicalWidth, mode.physicalHeight)
+        formFactor = detected
+        detected
+    }
+
+    /** 화면 종류에 맞는 토큰 값을 px 로. */
+    private fun Context.px(dimen: Dimen): Int = (dimen.of(formFactor()) * resources.displayMetrics.density).roundToInt()
+
+    private fun Context.px(dp: Int): Int = (dp * resources.displayMetrics.density).roundToInt()
 
     fun screen(context: Context, content: LinearLayout): ScrollView =
         ScrollView(context).apply {
@@ -171,61 +179,59 @@ internal object Ui {
 
     fun column(context: Context): LinearLayout = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
-        val padding = context.dp(PADDING_DP)
+        val padding = context.px(T.BAR_PADDING_START)
         setPadding(padding, padding, padding, padding)
     }
 
     /** 자식들을 같은 너비로 나란히 놓는다. 양끝은 위아래 전체 너비 버튼과 맞춘다. */
     fun row(context: Context, vararg children: View): LinearLayout = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
-        // 글자와 버튼을 한 줄에 놓을 때(사용자 목록) 글자를 버튼 가운데 높이에 맞춘다
         gravity = Gravity.CENTER_VERTICAL
-        val gap = context.dp(BUTTON_GAP_DP)
+        val gap = context.px(T.BUTTON_LARGE_GAP)
         children.forEachIndexed { index, child ->
             addView(child, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { if (index > 0) marginStart = gap })
         }
         layoutParams = spaced(context)
     }
 
-    /** 화면 제목 글자. header 로 감싸 상단바에 놓는다. */
+    /** 화면 제목 글자 (Title/Large/Strong). header 로 감싸 상단바에 놓는다. */
     fun title(context: Context, text: String): TextView = TextView(context).apply {
         this.text = text
-        textSize = TITLE_SP
-        lineHeightSp(TITLE_LINE_SP)
-        font(WEIGHT_BOLD)
+        style(TITLE_LARGE_STRONG)
         setTextColor(palette(context).textPrimary)
         maxLines = TITLE_MAX_LINES
     }
 
     /**
-     * 상단바 (Pleos Page Navigation, ivi_title).
-     * main 이면 앱 아이콘 + 제목(Main), 아니면 뒤로 화살표 + 제목(Depth).
+     * 상단바 (ivi_title). main 이면 앱 아이콘 + 제목(Type=Main), 아니면 뒤로 화살표 + 제목(Type=Depth).
      * 뒤로는 시스템 뒤로와 같게 onBackPressed 를 부른다 (관리자 첫 등록 화면의 재정의를 따르게).
+     * 화면 좌우 여백(column)이 이미 padding_extralarge 라 상단바 자체 좌우 패딩은 두지 않는다.
      */
     fun header(activity: Activity, title: TextView, main: Boolean = false): LinearLayout = LinearLayout(activity).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
-        minimumHeight = activity.dp(BAR_HEIGHT_DP)
+        minimumHeight = activity.px(T.BAR_HEIGHT)
         val colors = palette(activity)
-        val lead: View
         val gap: Int
         if (main) {
-            lead = appIcon(activity, colors)
-            gap = activity.dp(APP_ICON_GAP_DP)
-            addView(lead, LinearLayout.LayoutParams(activity.dp(APP_ICON_DP), activity.dp(APP_ICON_DP)))
+            val icon = activity.px(T.BAR_APP_ICON)
+            addView(appIcon(activity, colors), LinearLayout.LayoutParams(icon, icon))
+            // 제목은 primary_button 안에 있어 그 왼쪽 패딩만큼 더 띄운다
+            gap = activity.px(T.BAR_APP_ICON_GAP) + activity.px(T.BAR_TITLE_PADDING_H)
         } else {
-            lead = ImageView(activity).apply {
+            val back = ImageView(activity).apply {
                 setImageResource(R.drawable.ic_pleos_back)
                 imageTintList = ColorStateList.valueOf(colors.textPrimary)
                 contentDescription = "뒤로"
                 background = StateListDrawable().apply {
-                    addState(intArrayOf(android.R.attr.state_pressed), rounded(activity, colors.basicPressed, BACK_PRESSED_RADIUS_DP))
+                    addState(intArrayOf(android.R.attr.state_pressed), rounded(activity, colors.basicPressed, activity.px(T.BUTTON_MEDIUM_RADIUS)))
                 }
                 @Suppress("DEPRECATION")
                 setOnClickListener { activity.onBackPressed() }
             }
-            gap = activity.dp(BAR_GAP_DP)
-            addView(lead, LinearLayout.LayoutParams(activity.dp(BACK_ICON_DP), activity.dp(BACK_ICON_DP)))
+            val icon = activity.px(T.BAR_BACK_ICON)
+            addView(back, LinearLayout.LayoutParams(icon, icon))
+            gap = activity.px(T.BAR_BACK_GAP)
         }
         addView(title, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginStart = gap })
         layoutParams = spaced(activity)
@@ -234,21 +240,20 @@ internal object Ui {
     private fun appIcon(context: Context, colors: Palette) = ImageView(context).apply {
         setImageDrawable(context.applicationInfo.loadIcon(context.packageManager))
         scaleType = ImageView.ScaleType.CENTER_CROP
-        val radius = context.dp(APP_ICON_RADIUS_DP)
+        val radius = context.px(T.BAR_APP_ICON_RADIUS).toFloat()
         outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) = outline.setRoundRect(0, 0, view.width, view.height, radius)
         }
         clipToOutline = true
-        foreground = rounded(context, Color.TRANSPARENT, APP_ICON_RADIUS_DP).apply {
-            setStroke(context.dp(APP_ICON_BORDER_DP), colors.dividerSecondary)
+        foreground = rounded(context, Color.TRANSPARENT, radius.roundToInt()).apply {
+            setStroke(context.px(T.LINE), colors.dividerSecondary)
         }
     }
 
+    /** 본문 (Body/Small/Normal, text/dark/secondary). .fig 에 Body/Medium/Normal 스타일은 없다. */
     fun body(context: Context, text: String): TextView = TextView(context).apply {
         this.text = text
-        textSize = BODY_SP
-        lineHeightSp(BODY_LINE_SP)
-        font(WEIGHT_REGULAR)
+        style(BODY_SMALL_NORMAL)
         setTextColor(palette(context).textSecondary)
         layoutParams = spaced(context)
     }
@@ -262,20 +267,19 @@ internal object Ui {
             val colors = palette(context)
             val size = if (medium) MEDIUM else LARGE
             this.text = text
-            textSize = size.textSp
-            lineHeightSp(size.lineSp)
-            font(WEIGHT_BOLD)
+            style(size.text)
             isAllCaps = false
             // 기본 버튼 스타일은 한 줄만 보여 줘서 여러 줄 라벨이 잘린다
             isSingleLine = false
             maxLines = BUTTON_MAX_LINES
-            minHeight = context.dp(size.heightDp)
-            minimumHeight = context.dp(size.heightDp)
-            // 기본 버튼 스타일의 최소 너비(약 88dp)를 없애고 .fig 의 패딩만 둔다
-            minWidth = 0
-            minimumWidth = 0
+            minHeight = context.px(size.height)
+            minimumHeight = context.px(size.height)
+            minWidth = context.px(size.minWidth)
+            minimumWidth = context.px(size.minWidth)
             gravity = Gravity.CENTER
-            setPadding(context.dp(size.paddingHDp), context.dp(size.paddingVDp), context.dp(size.paddingHDp), context.dp(size.paddingVDp))
+            val padH = context.px(size.paddingH)
+            val padV = context.px(size.paddingV)
+            setPadding(padH, padV, padH, padV)
             // 그림자·눌림 높이 변화를 없앤다 (Pleos 버튼은 평면)
             stateListAnimator = null
             elevation = 0f
@@ -285,6 +289,7 @@ internal object Ui {
                     intArrayOf(colors.textQuaternary, if (filled) colors.textOnFilled else colors.textPrimary),
                 ),
             )
+            val radius = context.px(size.radius)
             val enabled = if (filled) colors.filledEnabled else colors.basicEnabled
             val pressed = if (filled) colors.filledPressed else colors.basicPressed
             val disabled = if (filled) colors.filledDisabled else colors.basicDisabled
@@ -292,13 +297,14 @@ internal object Ui {
             background = StateListDrawable().apply {
                 addState(
                     intArrayOf(-android.R.attr.state_enabled),
-                    rounded(context, disabled, size.radiusDp).apply {
-                        setStroke(context.dp(BUTTON_DISABLED_BORDER_DP), colors.dividerSecondary)
-                    },
+                    // Disabled: 바탕 + divider/secondary 안쪽 테두리 (.fig 에서 테두리 두께는 2 고정)
+                    insideStroke(context, disabled, colors.dividerSecondary, context.px(2), radius),
                 )
-                addState(intArrayOf(android.R.attr.state_pressed), rounded(context, pressed, size.radiusDp))
-                addState(intArrayOf(), rounded(context, enabled, size.radiusDp))
+                addState(intArrayOf(android.R.attr.state_pressed), rounded(context, pressed, radius))
+                addState(intArrayOf(), rounded(context, enabled, radius))
             }
+            // 배경 drawable 이 뷰 패딩을 바꿀 수 있어 배경 뒤에 다시 준다
+            setPadding(padH, padV, padH, padV)
             layoutParams = spaced(context)
             setOnClickListener { onClick() }
         }
@@ -312,24 +318,25 @@ internal object Ui {
             val colors = palette(context)
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = context.dp(ITEM_MIN_HEIGHT_DP)
-            setPadding(context.dp(ITEM_PADDING_H_DP), context.dp(ITEM_PADDING_V_DP), context.dp(ITEM_PADDING_H_DP), context.dp(ITEM_PADDING_V_DP))
+            minimumHeight = context.px(T.ITEM_HEIGHT)
+            val padH = context.px(T.ITEM_PADDING_H)
+            val padV = context.px(T.ITEM_PADDING_V)
+            setPadding(padH, padV, padH, padV)
             if (onClick != null) {
                 background = StateListDrawable().apply {
-                    addState(intArrayOf(android.R.attr.state_pressed), rounded(context, colors.itemPressed, ITEM_RADIUS_DP))
+                    addState(intArrayOf(android.R.attr.state_pressed), rounded(context, colors.itemPressed, context.px(T.ITEM_RADIUS)))
                     addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
                 }
                 setOnClickListener { onClick() }
             }
             val label = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(context.dp(ITEM_LABEL_PADDING_H_DP), 0, context.dp(ITEM_LABEL_PADDING_H_DP), 0)
+                val labelPad = context.px(T.ITEM_LABEL_PADDING_H)
+                setPadding(labelPad, 0, labelPad, 0)
                 addView(
                     TextView(context).apply {
                         text = title
-                        textSize = ITEM_TITLE_SP
-                        lineHeightSp(ITEM_TITLE_LINE_SP)
-                        font(WEIGHT_BOLD)
+                        style(BODY_LARGE_STRONG)
                         setTextColor(colors.textPrimary)
                     },
                 )
@@ -337,12 +344,10 @@ internal object Ui {
                     addView(
                         TextView(context).apply {
                             text = subtitle
-                            textSize = ITEM_SUBTITLE_SP
-                            lineHeightSp(ITEM_SUBTITLE_LINE_SP)
-                            font(WEIGHT_REGULAR)
+                            style(BODY_SMALL_NORMAL)
                             setTextColor(colors.textTertiary)
                         },
-                        LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = context.dp(ITEM_TEXT_GAP_DP) },
+                        LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = context.px(T.ITEM_TEXT_GAP) },
                     )
                 }
             }
@@ -356,57 +361,141 @@ internal object Ui {
         val colors = palette(context)
         this.hint = hint
         setText(value)
-        textSize = FIELD_SP
-        lineHeightSp(FIELD_LINE_SP)
-        font(WEIGHT_REGULAR)
+        style(TITLE_MEDIUM_NORMAL)
         setTextColor(colors.textPrimary)
         setHintTextColor(colors.textTertiary)
         isSingleLine = true
         inputType = InputType.TYPE_CLASS_TEXT or (if (caps) InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS else 0)
         // 가로 화면에선 키보드가 앱 전체를 덮는 전체 화면 입력으로 뜬다. 입력칸이 보이게 끈다
         imeOptions = imeOptions or EditorInfo.IME_FLAG_NO_EXTRACT_UI
-        minHeight = context.dp(FIELD_HEIGHT_DP)
-        minimumHeight = context.dp(FIELD_HEIGHT_DP)
+        minHeight = context.px(T.FIELD_HEIGHT)
+        minimumHeight = context.px(T.FIELD_HEIGHT)
+        val radius = context.px(T.FIELD_RADIUS)
         background = StateListDrawable().apply {
             addState(
                 intArrayOf(android.R.attr.state_focused),
-                field(context, colors.fieldBackground, colors.fieldFocused, FIELD_FOCUSED_BORDER_DP),
+                insideStroke(context, colors.fieldBackground, colors.fieldFocused, context.px(T.FIELD_FOCUSED_BORDER), radius),
             )
-            addState(intArrayOf(), field(context, colors.fieldBackground, colors.dividerSecondary, FIELD_BORDER_DP))
+            addState(intArrayOf(), insideStroke(context, colors.fieldBackground, colors.dividerSecondary, context.px(T.FIELD_BORDER), radius))
         }
-        // InsetDrawable 은 들인 만큼을 패딩으로 알려 배경을 넣으면 뷰 패딩이 그 값으로 바뀐다. 그래서 배경 뒤에 준다
-        setPadding(context.dp(FIELD_PADDING_H_DP), 0, context.dp(FIELD_PADDING_H_DP), 0)
+        // 배경 drawable 이 뷰 패딩을 바꿀 수 있어 배경 뒤에 준다
+        val padH = context.px(T.FIELD_PADDING_H)
+        setPadding(padH, 0, padH, 0)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             textCursorDrawable = GradientDrawable().apply {
                 setColor(colors.textPrimary)
-                setSize(context.dp(CURSOR_WIDTH_DP), context.dp(CURSOR_HEIGHT_DP))
+                setSize(context.px(CURSOR_WIDTH_DP), context.px(CURSOR_HEIGHT_DP))
             }
         }
         layoutParams = spaced(context)
     }
 
-    private fun rounded(context: Context, color: Int, radiusDp: Float) = GradientDrawable().apply {
-        setColor(color)
-        cornerRadius = context.dp(radiusDp)
+    /**
+     * 시스템 팝업 (ivi_system_popup Size=Medium). 제목·설명은 가운데, 버튼은 가로 두 개(왼쪽 filled = 주 동작).
+     * 플랫폼 AlertDialog 는 밤에도 밝게 그려져 앱 디자인과 달라서 직접 그린다.
+     * 뒤 화면을 어둡게 하는 값은 .fig 에 정의가 없어 플랫폼 대화상자 기본을 따른다.
+     */
+    fun popup(
+        activity: Activity,
+        title: String,
+        message: String,
+        confirm: String,
+        cancel: String? = null,
+        onConfirm: () -> Unit = {},
+    ): Dialog {
+        val colors = palette(activity)
+        val dialog = Dialog(activity)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        val content = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            background = insideStroke(activity, colors.popupBackground, colors.dividerPrimary, activity.px(T.POPUP_BORDER), activity.px(T.POPUP_RADIUS))
+            val pad = activity.px(T.POPUP_PADDING)
+            setPadding(pad, pad, pad, pad)
+            val header = LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, 0, 0, activity.px(T.POPUP_HEADER_PADDING_BOTTOM))
+                addView(
+                    TextView(activity).apply {
+                        text = title
+                        style(TITLE_LARGE_EXTRA_STRONG)
+                        setTextColor(colors.textPrimary)
+                        gravity = Gravity.CENTER
+                    },
+                    LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT),
+                )
+                addView(
+                    TextView(activity).apply {
+                        text = message
+                        style(BODY_LARGE_NORMAL)
+                        setTextColor(colors.textSecondary)
+                        gravity = Gravity.CENTER
+                    },
+                    LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = activity.px(T.POPUP_GAP) },
+                )
+            }
+            addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+            val buttons = LinearLayout(activity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                val confirmButton = button(activity, confirm, filled = true) {
+                    dialog.dismiss()
+                    onConfirm()
+                }
+                addView(confirmButton, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                if (cancel != null) {
+                    val cancelButton = button(activity, cancel) { dialog.dismiss() }
+                    addView(cancelButton, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginStart = activity.px(T.POPUP_GAP) })
+                }
+            }
+            addView(buttons, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = activity.px(T.POPUP_SECTION_GAP) })
+        }
+        dialog.setContentView(content)
+        dialog.window?.apply {
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setLayout(activity.px(T.POPUP_WIDTH), WRAP_CONTENT)
+        }
+        return dialog
     }
 
-    // GradientDrawable 테두리는 선 가운데가 가장자리에 걸려 반이 밖으로 잘린다. .fig 의 안쪽(INSIDE) 테두리처럼 보이게 반만큼 들인다
-    private fun field(context: Context, fill: Int, stroke: Int, widthDp: Int) = InsetDrawable(
-        rounded(context, fill, FIELD_RADIUS_DP).apply { setStroke(context.dp(widthDp), stroke) },
-        context.dp(widthDp) / 2,
+    private fun rounded(context: Context, color: Int, radiusPx: Int) = GradientDrawable().apply {
+        setColor(color)
+        cornerRadius = radiusPx.toFloat()
+    }
+
+    /**
+     * .fig 의 안쪽(INSIDE) 테두리: 바탕은 경계 끝까지 채우고 그 위에 선을 경계 안쪽으로 겹친다.
+     * GradientDrawable 하나에 선을 주면 선 두께 반만큼 바탕을 들여 그려서, 반투명 선 아래 바깥 1px 에 바탕이 없다.
+     * 그래서 바탕과 선을 두 층으로 나눈다. 선 층은 반 두께만큼 들인 사각형에 그려지므로 반지름도 그만큼 줄여 바깥 곡선을 맞춘다.
+     */
+    private fun insideStroke(context: Context, fill: Int, stroke: Int, widthPx: Int, radiusPx: Int) = LayerDrawable(
+        arrayOf(
+            rounded(context, fill, radiusPx),
+            rounded(context, Color.TRANSPARENT, (radiusPx - widthPx / 2).coerceAtLeast(0)).apply { setStroke(widthPx, stroke) },
+        ),
     )
 
-    private fun TextView.lineHeightSp(sp: Float) {
-        lineHeight = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, sp, resources.displayMetrics).toInt()
-    }
-
-    /** res/font/asta_sans.xml 에 묶어 둔 굵기(400·600·700·800) 중 가장 가까운 것을 고른다. */
-    private fun TextView.font(weight: Int) {
-        typeface = Typeface.create(resources.getFont(R.font.asta_sans), weight, false)
+    /**
+     * .fig 텍스트 스타일을 입힌다. Figma 는 글줄 하나를 줄높이 상자로 잡고 글자를 가운데 두지만,
+     * 안드로이드는 마지막 줄에 줄높이 여분을 주지 않아 한 줄 글자가 줄높이보다 낮아진다.
+     * 글꼴 여백을 끄고 남는 만큼을 위아래로 나눠 패딩으로 줘서 n 줄 = n x 줄높이 가 되게 한다.
+     * 버튼·입력칸은 뒤에서 자기 패딩을 다시 주고 높이가 고정이라 영향 없다.
+     */
+    private fun TextView.style(textStyle: TextStyle) {
+        val formFactor = context.formFactor()
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, textStyle.size.of(formFactor).toFloat())
+        // res/font/asta_sans.xml 에 묶어 둔 굵기(400·600·700·800) 중 가장 가까운 것을 고른다
+        typeface = Typeface.create(resources.getFont(R.font.asta_sans), textStyle.weight, false)
+        includeFontPadding = false
+        val lineHeightPx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, textStyle.line.of(formFactor).toFloat(), resources.displayMetrics)
+            .roundToInt()
+        lineHeight = lineHeightPx
+        val metrics = paint.fontMetricsInt
+        val leading = (lineHeightPx - (metrics.descent - metrics.ascent)).coerceAtLeast(0)
+        setPadding(paddingLeft, leading / 2, paddingRight, leading - leading / 2)
     }
 
     private fun spaced(context: Context) = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
-        val gap = context.dp(GAP_DP)
+        val gap = context.px(T.BUTTON_LARGE_GAP)
         setMargins(0, gap / 2, 0, gap / 2)
     }
 }

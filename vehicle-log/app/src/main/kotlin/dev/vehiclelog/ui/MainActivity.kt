@@ -2,7 +2,6 @@ package dev.vehiclelog.ui
 
 import android.Manifest
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
@@ -96,21 +95,27 @@ class MainActivity : Activity() {
         if (isFinishing || ScreenAccess.canDrawOverApps(this)) return
         val settings = ScreenAccess.overlaySettings(this)
             ?: ScreenAccess.fullScreenSettings(this)?.takeIf { !ScreenAccess.fullScreenAllowed(this) }
-        val dialog = AlertDialog.Builder(this)
-        if (settings == null) {
-            dialog.setMessage(
-                if (ScreenAccess.canShowTripEnd(this)) {
+        val popup = if (settings == null) {
+            Ui.popup(
+                this,
+                title = "종료 화면 알림",
+                message = if (ScreenAccess.canShowTripEnd(this)) {
                     "운행이 끝나면 알림으로 종료 화면을 띄웁니다."
                 } else {
                     "이 차량에서는 허용 설정 화면을 열 수 없습니다. 운행이 끝나면 알림으로 알려 드립니다."
                 },
-            ).setPositiveButton("확인", null)
+                confirm = "확인",
+            )
         } else {
-            dialog.setMessage("다른 앱을 보고 있어도 운행이 끝나면 종료 화면을 띄우려면, 다음 설정 화면에서 이 앱을 허용해 주세요.")
-                .setPositiveButton("설정 열기") { _, _ -> startActivity(settings) }
-                .setNegativeButton("나중에", null)
+            Ui.popup(
+                this,
+                title = "다른 앱 위에 표시",
+                message = "다른 앱을 보고 있어도 운행이 끝나면 종료 화면을 띄우려면, 다음 설정 화면에서 이 앱을 허용해 주세요.",
+                confirm = "설정 열기",
+                cancel = "나중에",
+            ) { startActivity(settings) }
         }
-        dialog.show()
+        popup.show()
     }
 
     /**
@@ -127,16 +132,13 @@ class MainActivity : Activity() {
     }
 
     private fun confirmReplay(enabled: Boolean) {
+        val title = if (enabled) "시연 모드로 바꿀까요?" else "실차 신호로 바꿀까요?"
         val message = if (enabled) {
-            "시연 모드(재생 신호)로 바꿀까요?\n실차 신호 대신 시연용 가짜 운행이 기록에 추가됩니다."
+            "실차 신호 대신 시연용 가짜 운행이 기록에 추가됩니다."
         } else {
-            "실차 신호로 바꿀까요?"
+            "시연용 재생을 멈추고 차량 신호로 운행을 기록합니다."
         }
-        AlertDialog.Builder(this)
-            .setMessage(message)
-            .setPositiveButton("바꾸기") { _, _ -> setReplay(enabled) }
-            .setNegativeButton("취소", null)
-            .show()
+        Ui.popup(this, title, message, confirm = "바꾸기", cancel = "취소") { setReplay(enabled) }.show()
     }
 
     private fun setReplay(enabled: Boolean) {

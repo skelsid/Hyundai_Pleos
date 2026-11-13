@@ -1,7 +1,6 @@
 package dev.vehiclelog.ui
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.os.Bundle
 import android.widget.LinearLayout
 import android.widget.Toast
@@ -71,17 +70,19 @@ class UsersActivity : Activity() {
     }
 
     private fun confirmRemove(user: User, label: String) {
-        AlertDialog.Builder(this)
-            .setMessage("$label 을(를) 후보에서 뺄까요? 지난 운행 기록은 그대로 남습니다.")
-            .setPositiveButton("빼기") { _, _ ->
-                io.execute {
-                    TripStore.get(this).deactivateUser(user.id)
-                    AppLog.info("user.deactivated", "id" to user.id)
-                    runOnUiThread { reload() }
-                }
+        Ui.popup(
+            this,
+            title = "$label 을(를) 뺄까요?",
+            message = "운행 종료 화면의 사용자 후보에서 빠집니다. 지난 운행 기록은 그대로 남습니다.",
+            confirm = "빼기",
+            cancel = "취소",
+        ) {
+            io.execute {
+                TripStore.get(this).deactivateUser(user.id)
+                AppLog.info("user.deactivated", "id" to user.id)
+                runOnUiThread { reload() }
             }
-            .setNegativeButton("취소", null)
-            .show()
+        }.show()
     }
 
     override fun onDestroy() {

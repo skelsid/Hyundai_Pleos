@@ -47,8 +47,9 @@ vehicle-log/app/src/main/kotlin/dev/vehiclelog/
 
 화면 모양은 [Pleos Connect UI 디자인 가이드](https://document.pleos.ai/en/docs/connect/guide/docs-design/)를 따른다.
 색·글자·크기는 가이드가 배포하는 디자인 자산(`Pleos_Connect_design_assets_215.fig`)의 변수와 컴포넌트 값을 그대로 쓴다.
-크기는 OS 기본 16:9 디스플레이용 `connect-s` 값, 색은 Light/Dark 값이고 낮/밤은 시스템 설정을 따른다(`ui/Ui.kt`, `res/values(-night)`).
-컴포넌트는 상단바(`ivi_title` Main/Depth), 버튼(`ivi_basic_button` Large/Medium), 입력칸(`ivi_text_field` Medium), 목록 항목(`List/item`)을 옮겼다.
+크기는 화면 종류별 값(`connect-s` / `connect-w` / `connect-waterfall`)을 `ui/PleosTokens.kt` 에 옮겨 두고, 디스플레이 물리 해상도로 고른다(`ui/FormFactor.kt`: 긴 변 3840 = Wide, 3072 = Waterfall, 그 외 16:9 Standard). 레이아웃 문서에 따라 기존 Connect-L 은 Standard 로 본다.
+색은 Light/Dark 값이고 낮/밤은 시스템 설정을 따른다(`ui/Ui.kt`, `res/values(-night)`).
+컴포넌트는 상단바(`ivi_title` Main/Depth), 버튼(`ivi_basic_button` Large/Medium), 입력칸(`ivi_text_field` Medium), 목록 항목(`List/item`), 확인 창(`ivi_system_popup` Medium)을 옮겼다. 확인 창은 플랫폼 AlertDialog 대신 직접 그린다(AlertDialog 는 밤에도 밝게 그려진다).
 글꼴은 가이드가 쓰는 Asta Sans(SIL OFL 1.1)를 앱에 넣었다. 라이선스 전문은 `app/src/main/assets/licenses/AstaSans-OFL.txt`.
 
 ## 빌드
@@ -122,3 +123,4 @@ adb shell am start --user 10 -n dev.vehiclelog/.ui.MainActivity --ez replay fals
 - 메일 발송은 가짜 SMTP 서버로만 시험했다. 실제 Gmail 발송은 앱에 발신 계정을 입력해 확인해야 한다.
 - 현재 위치 주소(`getCurrentLocationInfo`)는 에뮬레이터에서 내비 자체 위치(성남 수정구)를 준다. 실차에서 실제 위치 주소가 오는지는 미확인이다.
 - 짧은 움직임을 버리는 기준(100m·3분, 거리 미수신이면 1분)은 가정값이다.
+- 화면은 16:9(2560x1440, 160dpi) 에뮬레이터에서만 보았다. Wide·Waterfall 값은 화면 종류를 강제로 바꾼 빌드로 크기만 확인했고, 실제 그 화면과 실차의 화면 밀도는 확인하지 못했다(.fig 의 px 를 dp 로 본다).
