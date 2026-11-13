@@ -26,6 +26,7 @@ import android.view.Window
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -53,6 +54,13 @@ internal object Ui {
     private const val CURSOR_WIDTH_DP = 3
     private const val CURSOR_HEIGHT_DP = 32
     private const val PERCENT_TO_ALPHA = 2.55f
+    // .fig ic_app 의 그림자 두 겹(DROP_SHADOW). 변수에 묶여 있지 않은 고정 값
+    private const val ICON_SHADOW_FAR_Y_DP = 8
+    private const val ICON_SHADOW_FAR_BLUR_DP = 32
+    private const val ICON_SHADOW_FAR_ALPHA_PERCENT = 16
+    private const val ICON_SHADOW_NEAR_Y_DP = 2
+    private const val ICON_SHADOW_NEAR_BLUR_DP = 2
+    private const val ICON_SHADOW_NEAR_ALPHA_PERCENT = 8
 
     /** .fig 텍스트 스타일: 크기·줄높이 변수와 굵기. */
     private class TextStyle(val size: Dimen, val line: Dimen, val weight: Int)
@@ -181,6 +189,9 @@ internal object Ui {
         orientation = LinearLayout.VERTICAL
         val padding = context.px(T.BAR_PADDING_START)
         setPadding(padding, padding, padding, padding)
+        // 앱 아이콘 그림자가 아이콘 밖(위쪽 여백 포함)까지 그려지게 자르지 않는다
+        clipChildren = false
+        clipToPadding = false
     }
 
     /** 자식들을 같은 너비로 나란히 놓는다. 양끝은 위아래 전체 너비 버튼과 맞춘다. */
@@ -215,7 +226,13 @@ internal object Ui {
         val gap: Int
         if (main) {
             val icon = activity.px(T.BAR_APP_ICON)
-            addView(appIcon(activity, colors), LinearLayout.LayoutParams(icon, icon))
+            // 아이콘은 둥근 모서리로 잘리므로 그림자는 감싸는 틀의 배경으로 그린다
+            val frame = FrameLayout(activity).apply {
+                background = appIconShadow(activity)
+                addView(appIcon(activity, colors), FrameLayout.LayoutParams(icon, icon))
+            }
+            addView(frame, LinearLayout.LayoutParams(icon, icon))
+            clipChildren = false
             // 제목은 primary_button 안에 있어 그 왼쪽 패딩만큼 더 띄운다
             gap = activity.px(T.BAR_APP_ICON_GAP) + activity.px(T.BAR_TITLE_PADDING_H)
         } else {
@@ -236,6 +253,22 @@ internal object Ui {
         addView(title, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginStart = gap })
         layoutParams = spaced(activity)
     }
+
+    private fun appIconShadow(context: Context) = ShadowDrawable(
+        context.px(T.BAR_APP_ICON_RADIUS).toFloat(),
+        listOf(
+            ShadowDrawable.Shadow(
+                context.px(ICON_SHADOW_FAR_Y_DP).toFloat(),
+                context.px(ICON_SHADOW_FAR_BLUR_DP).toFloat(),
+                alpha("#000000", ICON_SHADOW_FAR_ALPHA_PERCENT),
+            ),
+            ShadowDrawable.Shadow(
+                context.px(ICON_SHADOW_NEAR_Y_DP).toFloat(),
+                context.px(ICON_SHADOW_NEAR_BLUR_DP).toFloat(),
+                alpha("#000000", ICON_SHADOW_NEAR_ALPHA_PERCENT),
+            ),
+        ),
+    )
 
     private fun appIcon(context: Context, colors: Palette) = ImageView(context).apply {
         setImageDrawable(context.applicationInfo.loadIcon(context.packageManager))
