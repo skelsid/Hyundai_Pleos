@@ -568,6 +568,8 @@ internal object Ui {
         message: String,
         confirm: String,
         cancel: String? = null,
+        // 긴 안내문(동의서 등)은 왼쪽 정렬이 읽기 쉽다. 기본은 .fig 대로 가운데
+        messageGravity: Int = Gravity.CENTER,
         onConfirm: () -> Unit = {},
     ): Dialog {
         val colors = palette(activity)
@@ -593,11 +595,11 @@ internal object Ui {
                 )
                 // 설명이 화면보다 길면 버튼이 밀려나지 않게 설명만 스크롤한다 (weight 로 남는 높이까지만 쓴다)
                 val description = TextView(activity).apply {
-                        text = message
-                        style(BODY_LARGE_NORMAL)
-                        setTextColor(colors.textSecondary)
-                        gravity = Gravity.CENTER
-                    }
+                    text = message
+                    style(BODY_LARGE_NORMAL)
+                    setTextColor(colors.textSecondary)
+                    gravity = messageGravity
+                }
                 addView(
                     ScrollView(activity).apply { addView(description, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) },
                     LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1f).apply { topMargin = activity.px(T.POPUP_GAP) },

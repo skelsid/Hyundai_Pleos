@@ -2,8 +2,10 @@ package dev.vehiclelog.ui
 
 import android.Manifest
 import android.app.Activity
+import android.app.Dialog
 import android.content.Intent
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
@@ -11,6 +13,7 @@ import android.widget.TextView
 import dev.vehiclelog.AppLog
 import dev.vehiclelog.data.AdminInfo
 import dev.vehiclelog.data.TripStore
+import dev.vehiclelog.service.Consent
 import dev.vehiclelog.service.ScreenAccess
 import dev.vehiclelog.service.Settings
 import dev.vehiclelog.service.TireStatus
@@ -22,7 +25,8 @@ import java.util.concurrent.Executors
 
 /**
  * 첫 화면. 설치 직후에는 부팅 이벤트가 없으므로 여기서 운행 감지를 시작한다.
- * 처음 실행하면 관리자 등록 → 종료 화면 자동 표시 허용 순서로 안내한다.
+ * 처음 실행하면 개인정보 수집 동의 → 관리자 등록 → 종료 화면 자동 표시 허용 순서로 안내한다.
+ * 동의하지 않으면 운행을 기록하지 않고, 동의 버튼만 남긴다.
  * 주행 중 제한이 걸리면 설정·관리 화면(distractionOptimized 아님)으로 가는 버튼을 끄고, 첫 실행 안내도 정차 뒤로 미룬다.
  * 시연용 재생 모드: `adb shell am start --user 10 -n dev.vehiclelog/.ui.MainActivity --ez replay true` 뒤 확인 창에서 [바꾸기]
  */
@@ -34,6 +38,11 @@ class MainActivity : Activity() {
     private lateinit var screenAccessButton: Button
     private lateinit var replayButton: Button
     private lateinit var drivingNote: TextView
+    private lateinit var consentButton: Button
+    private var consentPopup: Dialog? = null
+
+    // 이 화면에서 동의를 거절했으면 다시 묻지 않는다 (동의 버튼으로만 다시 연다)
+    private var consentDeclined = false
     private lateinit var drivingState: DrivingState
     private var rules = DrivingRules.PARKED
 
@@ -47,6 +56,8 @@ class MainActivity : Activity() {
         classifyButton = Ui.button(this, "미분류 운행 분류") { startActivity(TripEndActivity.intent(this)) }
         root.addView(Ui.header(this, Ui.title(this, "차량운행기록"), main = true))
         root.addView(status)
+        consentButton = Ui.button(this, Consent.TITLE, filled = true) { showConsent() }
+        root.addView(consentButton)
         root.addView(classifyButton)
         drivingNote = Ui.body(this, "주행 중에는 운행 분류만 쓸 수 있습니다. 나머지는 정차 후 이용해 주세요.").apply {
             visibility = View.GONE
@@ -65,6 +76,7 @@ class MainActivity : Activity() {
         drivingState = DrivingState(this) { applyRules(it) }
         drivingState.start()
         applyReplayExtra(intent)
+        // 동의 전이면 시작하지 않는다 (start 가 확인한다)
         TripService.start(this)
     }
 
@@ -76,10 +88,46 @@ class MainActivity : Activity() {
     private fun applyRules(next: DrivingRules) {
         val parked = rules.restricted && !next.restricted
         rules = next
-        parkedOnly.forEach { it.isEnabled = !next.restricted }
-        drivingNote.visibility = if (next.restricted) View.VISIBLE else View.GONE
+        updateAccess()
         // 주행 중이라 미룬 첫 실행 안내를 정차하면 이어 한다
         if (parked && hasWindowFocus()) firstRunSteps()
+    }
+
+    /** 주행 중이거나 동의 전이면 관리·설정 버튼을 끈다. 동의 안내(긴 글)도 주행 중에는 열지 않는다. */
+    private fun updateAccess() {
+        val agreed = Consent.agreed(this)
+        parkedOnly.forEach { it.isEnabled = agreed && !rules.restricted }
+        consentButton.visibility = if (agreed) View.GONE else View.VISIBLE
+        consentButton.isEnabled = !rules.restricted
+        drivingNote.visibility = if (rules.restricted) View.VISIBLE else View.GONE
+    }
+
+    private fun showConsent() {
+        if (consentPopup?.isShowing == true || isFinishing) return
+        val popup = Ui.popup(
+            this,
+            title = Consent.TITLE,
+            message = Consent.NOTICE,
+            confirm = "동의",
+            cancel = "동의 안 함",
+            messageGravity = Gravity.START,
+        ) {
+            Consent.agree(this)
+            consentDeclined = false
+            TripService.start(this)
+            refresh()
+            firstRunSteps()
+        }
+        // [동의] 를 누른 경우만 동의로 본다. 뒤로 가기·바깥 터치·[동의 안 함] 은 거절
+        popup.setOnDismissListener {
+            if (!Consent.agreed(this)) {
+                consentDeclined = true
+                AppLog.info("consent.declined")
+                refresh()
+            }
+        }
+        consentPopup = popup
+        popup.show()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -97,6 +145,7 @@ class MainActivity : Activity() {
     private fun firstRunSteps() {
         if (rules.restricted) return
         when {
+            !Consent.agreed(this) -> if (!consentDeclined) showConsent()
             AdminInfo.load(this) == null -> startActivity(AdminActivity.intent(this, firstRun = true))
             !Settings.screenAccessAsked(this) -> {
                 Settings.setScreenAccessAsked(this)
@@ -199,18 +248,25 @@ class MainActivity : Activity() {
                     ScreenAccess.canShowTripEnd(this) -> "켜짐(알림)"
                     else -> "꺼짐"
                 }
-                status.text = "운행 감지 중 · 신호: ${if (replay) "재생(시연)" else "실차"}\n저장된 운행: ${count}건\n" +
-                    "타이어 공기압: $tireText\n종료 화면 자동 표시: $screen"
+                status.text = if (!Consent.agreed(this)) {
+                    "개인정보 수집·이용에 동의하지 않아 운행을 기록하지 않습니다."
+                } else {
+                    "운행 감지 중 · 신호: ${if (replay) "재생(시연)" else "실차"}\n저장된 운행: ${count}건\n" +
+                        "타이어 공기압: $tireText\n종료 화면 자동 표시: $screen"
+                }
+                updateAccess()
                 // 다른 앱 위에 표시까지 받으면 더 물을 게 없으므로 버튼을 숨긴다
                 screenAccessButton.visibility = if (ScreenAccess.canDrawOverApps(this)) View.GONE else View.VISIBLE
                 replayButton.text = if (replay) "시연 모드 끄기 (실차 신호로)" else "시연 모드 켜기 (가짜 운행 재생)"
                 classifyButton.text = "미분류 운행 분류 (${unclassified}건)"
-                classifyButton.isEnabled = unclassified > 0
+                // 동의 전에는 남아 있던 기록도 다루지 않는다
+                classifyButton.isEnabled = unclassified > 0 && Consent.agreed(this)
             }
         }
     }
 
     override fun onDestroy() {
+        consentPopup?.dismiss()
         drivingState.stop()
         io.shutdown()
         super.onDestroy()

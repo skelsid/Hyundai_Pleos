@@ -5,18 +5,25 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
+import android.view.Gravity
 import android.widget.Toast
 import dev.vehiclelog.AppLog
 import dev.vehiclelog.data.AdminInfo
 import dev.vehiclelog.data.MailAccount
 import dev.vehiclelog.mail.MailAddress
+import dev.vehiclelog.service.Consent
+import dev.vehiclelog.service.TripService
+import java.util.concurrent.Executors
 
 /**
  * 관리자 등록. 앱을 처음 설치하면 메인 화면이 먼저 이 화면을 연다.
  * 등록한 메일로 운행기록표가 간다. 보내는 Gmail 계정도 여기서 입력해 이 기기에만 저장한다 (APK 에 넣지 않는다).
  * 입력 칸이 있으므로 주행 중에는 시스템이 막는다 (distractionOptimized 아님).
+ * 개인정보 수집 안내를 다시 보고, 동의를 철회(모든 기록 삭제)하는 곳도 여기다.
  */
 class AdminActivity : Activity() {
+
+    private val io = Executors.newSingleThreadExecutor()
 
     private val firstRun get() = intent.getBooleanExtra(EXTRA_FIRST_RUN, false)
 
@@ -91,7 +98,47 @@ class AdminActivity : Activity() {
                 finish()
             },
         )
+        if (!firstRun) {
+            root.addView(Ui.body(this, "개인정보"))
+            root.addView(
+                Ui.button(this, "개인정보 수집 안내 보기") {
+                    Ui.popup(this, Consent.TITLE, Consent.NOTICE, confirm = "닫기", messageGravity = Gravity.START).show()
+                },
+            )
+            root.addView(Ui.button(this, "동의 철회 · 모든 기록 삭제") { confirmWithdraw() })
+        }
         setContentView(Ui.screen(this, root))
+    }
+
+    private fun confirmWithdraw() {
+        Ui.popup(
+            this,
+            title = "동의를 철회할까요?",
+            message = "저장된 운행 기록, 사용자, 관리자, 메일 계정, 차량 정보가 모두 지워지고 운행 기록을 멈춥니다. " +
+                "지운 기록은 되돌릴 수 없습니다. 필요하면 먼저 운행기록표를 보내 두세요.",
+            confirm = "철회하고 삭제",
+            cancel = "취소",
+        ) { withdraw() }.show()
+    }
+
+    private fun withdraw() {
+        // 서비스를 먼저 멈춰 지우는 동안 새 운행이 쌓이지 않게 한다
+        stopService(Intent(this, TripService::class.java))
+        val app = applicationContext
+        io.execute {
+            Consent.withdrawAndErase(app)
+            runOnUiThread {
+                Toast.makeText(app, "동의를 철회하고 모든 기록을 지웠습니다", Toast.LENGTH_SHORT).show()
+                // 첫 화면으로 돌아가면 동의를 다시 묻는다
+                startActivity(Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+                finish()
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        io.shutdown()
+        super.onDestroy()
     }
 
     // minSdk 28 이라 뒤로 가기 콜백(OnBackInvokedCallback, 33+)을 쓸 수 없어 이전 방식을 쓴다

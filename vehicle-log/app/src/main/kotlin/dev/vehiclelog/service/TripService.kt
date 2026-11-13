@@ -24,6 +24,7 @@ import dev.vehiclelog.trip.TripMath
 import dev.vehiclelog.ui.TripEndActivity
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 
 /**
  * 화면 없이 돌며 기어 변화로 운행을 감지해 저장한다.
@@ -42,6 +43,9 @@ class TripService : Service() {
     private var openTripId: Long? = null
     private var started = false
 
+    // onDestroy 뒤 늦게 도착한 차량 값·io 결과를 버리려고 둔다 (메인 스레드에서만 읽고 쓴다)
+    private var destroyed = false
+
     // 차량 값 조회는 최대 3초 걸린다. 짧은 운행에서 시작·종료 조회가 겹치면 끝나는 순서가 뒤집혀
     // 운행이 닫히지 않고 남을 수 있으므로, 조회를 한 번에 하나씩 기어 변화 순서대로 한다 (메인 스레드)
     private val reads = SerialQueue<Pair<TripEvent, Long>> { (event, at), done -> readAndRecord(event, at, done) }
@@ -56,13 +60,20 @@ class TripService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 시스템이 다시 띄웠는데 그 사이 동의를 철회했으면 기록하지 않고 멈춘다
+        if (!Consent.agreed(this)) {
+            AppLog.info("service.stopped", "reason" to "noConsent")
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (started) return START_STICKY
         started = true
         // 부팅 전 끝나지 않은 운행을 이어 받은 뒤에 신호를 듣는다
-        io.execute {
+        runIo {
             val open = store.openTrip()
             openTripId = open?.id
             mainHandler.post {
+                if (destroyed) return@post
                 detector = TripDetector(tripOpen = open != null)
                 AppLog.info("service.recovered", "openTripId" to open?.id)
                 signals.start(::onGear)
@@ -83,16 +94,30 @@ class TripService : Service() {
             when (event) {
                 TripEvent.STARTED -> {
                     signals.onTripStarted()
-                    io.execute { recordStart(point) }
+                    runIo { recordStart(point) }
                     checkTires()
                 }
-                TripEvent.ENDED -> io.execute { recordEnd(point) }
+                TripEvent.ENDED -> runIo { recordEnd(point) }
             }
             done()
         }
     }
 
+    /**
+     * io 스레드에 맡긴다. 서비스가 끝난 뒤 늦게 온 차량 값 콜백(최대 3초)은 버린다 —
+     * 끝난 실행기에 넣으면 RejectedExecutionException 으로 앱이 죽는다.
+     */
+    private fun runIo(task: () -> Unit) {
+        try {
+            io.execute(task)
+        } catch (e: RejectedExecutionException) {
+            AppLog.warn("service.io.rejected", "error" to e)
+        }
+    }
+
     private fun recordStart(point: TripPoint) {
+        // 철회와 겹친 경우: 동의가 없으면 기록하지 않는다
+        if (!Consent.agreed(this)) return
         val id = store.startTrip(point)
         openTripId = id
         AppLog.info("trip.started", "id" to id, "odometerKm" to point.odometerKm)
@@ -110,6 +135,7 @@ class TripService : Service() {
     }
 
     private fun recordEnd(point: TripPoint) {
+        if (!Consent.agreed(this)) return
         val id = openTripId ?: run {
             AppLog.warn("trip.end.noOpenTrip")
             return
@@ -125,6 +151,7 @@ class TripService : Service() {
         store.endTrip(id, point)
         AppLog.info("trip.ended", "id" to id, "odometerKm" to point.odometerKm, "hasPlace" to (point.placeName != null))
         mainHandler.post {
+            if (destroyed) return@post
             announcer.speak(TRIP_END_SPEECH)
             showTripEnd(id)
         }
@@ -175,6 +202,7 @@ class TripService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        destroyed = true
         signals.stop()
         announcer.release()
         mainHandler.removeCallbacksAndMessages(null)
@@ -190,7 +218,12 @@ class TripService : Service() {
         const val TRIP_END_NOTIFICATION_ID = 2
         private const val TRIP_END_SPEECH = "운행이 끝났습니다. 사용자와 업무용 여부를 확인해 주세요."
 
+        /** 개인정보 수집에 동의했을 때만 운행 감지를 시작한다. */
         fun start(context: Context) {
+            if (!Consent.agreed(context)) {
+                AppLog.info("service.notStarted", "reason" to "noConsent")
+                return
+            }
             context.startForegroundService(Intent(context, TripService::class.java))
         }
     }

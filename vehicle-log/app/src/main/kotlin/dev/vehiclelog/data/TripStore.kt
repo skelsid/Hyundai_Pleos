@@ -99,6 +99,26 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
         writableDatabase.delete("trips", "id = ?", arrayOf(id.toString()))
     }
 
+    /**
+     * 운행·사용자를 모두 지운다 (개인정보 동의 철회).
+     * 지운 행이 DB 파일의 빈 공간에 남지 않게 VACUUM 으로 다시 쓰고, WAL 파일도 비운다.
+     */
+    fun eraseAll() {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.delete("trips", null, null)
+            db.delete("users", null, null)
+            // AUTOINCREMENT 번호도 처음부터
+            db.delete("sqlite_sequence", null, null)
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        db.execSQL("VACUUM")
+        db.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { it.moveToFirst() }
+    }
+
     fun trip(id: Long): Trip? =
         readableDatabase.query("trips", null, "id = ?", arrayOf(id.toString()), null, null, null)
             .use { if (it.moveToFirst()) it.toTrip() else null }

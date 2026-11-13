@@ -36,5 +36,9 @@ data class VehicleInfo(
                 .putString(KEY_DEPARTMENT, info.department.trim())
                 .apply()
         }
+
+        /** 지운다 (개인정보 동의 철회). 디스크에 바로 쓰고 성공 여부를 돌려준다. */
+        fun clear(context: Context): Boolean =
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().commit()
     }
 }
