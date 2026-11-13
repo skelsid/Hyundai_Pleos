@@ -56,9 +56,7 @@ class AdminActivity : Activity() {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
         }
         // 저장된 비밀번호는 화면에 다시 보여 주지 않는다
-        val senderPassword = Ui.input(this, if (account != null) "앱 비밀번호 (바꿀 때만)" else "앱 비밀번호 16자리").apply {
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-        }
+        val senderPassword = Ui.input(this, if (account != null) "앱 비밀번호 (바꿀 때만)" else "앱 비밀번호 16자리", password = true)
         root.addView(senderAddress)
         root.addView(senderPassword)
         root.addView(

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Pleos background_secondary (낮). 화면 색은 Ui.kt 의 팔레트와 같게 둔다 -->
+    <!-- Pleos background/primary = basic/50 (낮). 화면 색은 Ui.kt 의 팔레트와 같게 둔다 -->
     <color name="background">#F7F8FA</color>
 </resources>

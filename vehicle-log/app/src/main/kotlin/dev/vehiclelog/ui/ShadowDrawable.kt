@@ -4,7 +4,9 @@ import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.ColorFilter
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.drawable.Drawable
 
@@ -12,6 +14,7 @@ import android.graphics.drawable.Drawable
  * Figma DROP_SHADOW (퍼짐 0) 을 둥근 사각형 뒤에 그린다. 경계 밖으로 그리므로 부모들이 자식을 자르지 않아야 보인다.
  * Figma 흐림 값은 CSS box-shadow 흐림과 같아 가우스 시그마 = 흐림 / 2 다.
  * 안드로이드 BlurMaskFilter 반지름은 시그마 = 0.57735 x 반지름 + 0.5 로 바뀌므로 거꾸로 풀어 넣는다.
+ * .fig 그림자는 showShadowBehindNode=false 라 도형 안쪽엔 그리지 않는다 (반투명 바탕 밑으로 비치지 않게 잘라 낸다).
  */
 internal class ShadowDrawable(private val cornerRadiusPx: Float, private val shadows: List<Shadow>) : Drawable() {
 
@@ -22,8 +25,16 @@ internal class ShadowDrawable(private val cornerRadiusPx: Float, private val sha
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
+    private val shape = Path()
+
+    override fun onBoundsChange(bounds: Rect) {
+        shape.reset()
+        shape.addRoundRect(RectF(bounds), cornerRadiusPx, cornerRadiusPx, Path.Direction.CW)
+    }
 
     override fun draw(canvas: Canvas) {
+        val saved = canvas.save()
+        canvas.clipOutPath(shape)
         for (shadow in shadows) {
             paint.color = shadow.color
             paint.maskFilter = BlurMaskFilter(shadow.maskRadius, BlurMaskFilter.Blur.NORMAL)
@@ -31,6 +42,7 @@ internal class ShadowDrawable(private val cornerRadiusPx: Float, private val sha
             rect.offset(0f, shadow.offsetYPx)
             canvas.drawRoundRect(rect, cornerRadiusPx, cornerRadiusPx, paint)
         }
+        canvas.restoreToCount(saved)
     }
 
     override fun setAlpha(alpha: Int) {

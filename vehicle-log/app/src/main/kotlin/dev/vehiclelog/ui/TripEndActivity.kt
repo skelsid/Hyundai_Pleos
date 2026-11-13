@@ -142,7 +142,7 @@ class TripEndActivity : Activity() {
             root.addView(Ui.button(this, "사용자 등록") { startActivity(Intent(this, UsersActivity::class.java)) })
         } else {
             for (user in users) {
-                val button = Ui.button(this, "") { selectUser(user.id) }
+                val button = Ui.toggle(this, "") { selectUser(user.id) }
                 userButtons[user.id] = button to user
                 root.addView(button)
             }
@@ -167,8 +167,8 @@ class TripEndActivity : Activity() {
     private fun refreshUserButtons() {
         for ((id, entry) in userButtons) {
             val (button, user) = entry
-            val mark = if (id == selectedUserId) "● " else "○ "
-            button.text = mark + user.name + (user.department?.let { " ($it)" } ?: "")
+            button.isSelected = id == selectedUserId
+            button.text = user.name + (user.department?.let { " ($it)" } ?: "")
         }
     }
 

@@ -41,7 +41,8 @@ import kotlin.math.roundToInt
  * 모양은 Pleos 공식 디자인 자산(Pleos_Connect_design_assets_215.fig)의 컴포넌트를 옮겼다.
  * - 크기: PleosTokens (화면 종류 S/W/WF 별 .fig 크기 변수). 화면 종류는 디스플레이 해상도로 고른다 (FormFactor).
  * - 색: .fig Color 변수의 Light/Dark 값 (아래 Palette). 낮/밤은 시스템 설정(uiMode)을 따른다.
- * - 컴포넌트: ivi_title(상단바), ivi_basic_button(Large/Medium), ivi_text_field(Medium), List/item, ivi_system_popup(Medium).
+ * - 컴포넌트: ivi_title(상단바), ivi_basic_button(Large/Medium), ivi_toggle_button(Large), ivi_text_field(Medium), List/item,
+ *   ivi_system_popup(Medium).
  * 화면 바탕(background/primary)은 res/values(-night)/colors.xml, 글꼴 Asta Sans 는 res/font/asta_sans.xml.
  */
 internal object Ui {
@@ -57,10 +58,13 @@ internal object Ui {
     // .fig ic_app 의 그림자 두 겹(DROP_SHADOW). 변수에 묶여 있지 않은 고정 값
     private const val ICON_SHADOW_FAR_Y_DP = 8
     private const val ICON_SHADOW_FAR_BLUR_DP = 32
-    private const val ICON_SHADOW_FAR_ALPHA_PERCENT = 16
     private const val ICON_SHADOW_NEAR_Y_DP = 2
     private const val ICON_SHADOW_NEAR_BLUR_DP = 2
-    private const val ICON_SHADOW_NEAR_ALPHA_PERCENT = 8
+    // 그림자 Level 2 색 (#000000 16% / 8%). 앱 아이콘·토글 켜짐 공통, .fig 에서 변수 없이 고정
+    private const val SHADOW_FAR_ALPHA_PERCENT = 16
+    private const val SHADOW_NEAR_ALPHA_PERCENT = 8
+    // .fig 버튼 Disabled 테두리 두께. 변수 없이 고정
+    private const val DISABLED_BORDER_DP = 2
 
     /** .fig 텍스트 스타일: 크기·줄높이 변수와 굵기. */
     private class TextStyle(val size: Dimen, val line: Dimen, val weight: Int)
@@ -91,6 +95,10 @@ internal object Ui {
         T.BUTTON_MEDIUM_HEIGHT, T.BUTTON_MEDIUM_RADIUS, T.BUTTON_MEDIUM_PADDING_H, T.BUTTON_MEDIUM_PADDING_V, T.BUTTON_MEDIUM_MIN_WIDTH,
         BODY_LARGE_STRONG,
     )
+    private val TOGGLE = ButtonSize(
+        T.TOGGLE_LARGE_HEIGHT, T.TOGGLE_LARGE_RADIUS, T.TOGGLE_LARGE_PADDING_H, T.TOGGLE_LARGE_PADDING_V, T.TOGGLE_LARGE_MIN_WIDTH,
+        TITLE_SMALL_STRONG,
+    )
 
     /** Pleos Color 변수. 주석은 .fig 변수 이름. */
     private class Palette(
@@ -111,6 +119,9 @@ internal object Ui {
         val fieldFocused: Int, // field/focused
         val itemPressed: Int, // surface/basic
         val popupBackground: Int, // background/popup
+        val switchEnabled: Int, // button/switch/enabled (토글 켜짐)
+        val switchPressed: Int, // button/switch/pressed
+        val switchDisabled: Int, // button/switch/disabled
     )
 
     private fun alpha(rgb: String, percent: Int): Int {
@@ -136,6 +147,9 @@ internal object Ui {
         fieldFocused = Color.parseColor("#313236"),
         itemPressed = Color.parseColor("#FFFFFF"),
         popupBackground = Color.parseColor("#FFFFFF"),
+        switchEnabled = Color.parseColor("#FFFFFF"),
+        switchPressed = alpha("#FFFFFF", 50),
+        switchDisabled = alpha("#FFFFFF", 30),
     )
 
     private val DARK = Palette(
@@ -156,6 +170,9 @@ internal object Ui {
         fieldFocused = Color.parseColor("#EDEEF2"),
         itemPressed = Color.parseColor("#1D1E21"),
         popupBackground = Color.parseColor("#313236"),
+        switchEnabled = alpha("#FFFFFF", 20),
+        switchPressed = alpha("#FFFFFF", 10),
+        switchDisabled = alpha("#131417", 30),
     )
 
     private fun palette(context: Context): Palette {
@@ -260,12 +277,12 @@ internal object Ui {
             ShadowDrawable.Shadow(
                 context.px(ICON_SHADOW_FAR_Y_DP).toFloat(),
                 context.px(ICON_SHADOW_FAR_BLUR_DP).toFloat(),
-                alpha("#000000", ICON_SHADOW_FAR_ALPHA_PERCENT),
+                alpha("#000000", SHADOW_FAR_ALPHA_PERCENT),
             ),
             ShadowDrawable.Shadow(
                 context.px(ICON_SHADOW_NEAR_Y_DP).toFloat(),
                 context.px(ICON_SHADOW_NEAR_BLUR_DP).toFloat(),
-                alpha("#000000", ICON_SHADOW_NEAR_ALPHA_PERCENT),
+                alpha("#000000", SHADOW_NEAR_ALPHA_PERCENT),
             ),
         ),
     )
@@ -295,52 +312,110 @@ internal object Ui {
      * 기본 버튼 (ivi_basic_button). basic 이 기본, filled 는 화면의 주 동작 하나에만 쓴다.
      * 화면 버튼은 Large, 목록 항목 뒤에 붙는 버튼은 Medium.
      */
-    fun button(context: Context, text: String, filled: Boolean = false, medium: Boolean = false, onClick: () -> Unit): Button =
-        Button(context).apply {
-            val colors = palette(context)
-            val size = if (medium) MEDIUM else LARGE
-            this.text = text
-            style(size.text)
-            isAllCaps = false
-            // 기본 버튼 스타일은 한 줄만 보여 줘서 여러 줄 라벨이 잘린다
-            isSingleLine = false
-            maxLines = BUTTON_MAX_LINES
-            minHeight = context.px(size.height)
-            minimumHeight = context.px(size.height)
-            minWidth = context.px(size.minWidth)
-            minimumWidth = context.px(size.minWidth)
-            gravity = Gravity.CENTER
-            val padH = context.px(size.paddingH)
-            val padV = context.px(size.paddingV)
-            setPadding(padH, padV, padH, padV)
-            // 그림자·눌림 높이 변화를 없앤다 (Pleos 버튼은 평면)
-            stateListAnimator = null
-            elevation = 0f
-            setTextColor(
-                ColorStateList(
-                    arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf()),
-                    intArrayOf(colors.textQuaternary, if (filled) colors.textOnFilled else colors.textPrimary),
-                ),
+    fun button(context: Context, text: String, filled: Boolean = false, medium: Boolean = false, onClick: () -> Unit): Button {
+        val colors = palette(context)
+        val size = if (medium) MEDIUM else LARGE
+        val radius = context.px(size.radius)
+        val enabled = if (filled) colors.filledEnabled else colors.basicEnabled
+        val pressed = if (filled) colors.filledPressed else colors.basicPressed
+        val disabled = if (filled) colors.filledDisabled else colors.basicDisabled
+        val textColors = ColorStateList(
+            arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf()),
+            intArrayOf(colors.textQuaternary, if (filled) colors.textOnFilled else colors.textPrimary),
+        )
+        // 눌림은 물결(ripple) 대신 색만 바꾼다. 주행 중 화면에 움직임을 두지 않는다 (Pleos 주행 중 UI 원칙)
+        val background = StateListDrawable().apply {
+            addState(
+                intArrayOf(-android.R.attr.state_enabled),
+                // Disabled: 바탕 + divider/secondary 안쪽 테두리 (.fig 에서 테두리 두께는 2 고정)
+                insideStroke(context, disabled, colors.dividerSecondary, context.px(DISABLED_BORDER_DP), radius),
             )
-            val radius = context.px(size.radius)
-            val enabled = if (filled) colors.filledEnabled else colors.basicEnabled
-            val pressed = if (filled) colors.filledPressed else colors.basicPressed
-            val disabled = if (filled) colors.filledDisabled else colors.basicDisabled
-            // 눌림은 물결(ripple) 대신 색만 바꾼다. 주행 중 화면에 움직임을 두지 않는다 (Pleos 주행 중 UI 원칙)
-            background = StateListDrawable().apply {
-                addState(
-                    intArrayOf(-android.R.attr.state_enabled),
-                    // Disabled: 바탕 + divider/secondary 안쪽 테두리 (.fig 에서 테두리 두께는 2 고정)
-                    insideStroke(context, disabled, colors.dividerSecondary, context.px(2), radius),
-                )
-                addState(intArrayOf(android.R.attr.state_pressed), rounded(context, pressed, radius))
-                addState(intArrayOf(), rounded(context, enabled, radius))
-            }
-            // 배경 drawable 이 뷰 패딩을 바꿀 수 있어 배경 뒤에 다시 준다
-            setPadding(padH, padV, padH, padV)
-            layoutParams = spaced(context)
-            setOnClickListener { onClick() }
+            addState(intArrayOf(android.R.attr.state_pressed), rounded(context, pressed, radius))
+            addState(intArrayOf(), rounded(context, enabled, radius))
         }
+        return pleosButton(context, text, size, textColors, background, onClick)
+    }
+
+    /**
+     * 토글 버튼 (ivi_toggle_button Size=Large). 여러 선택지 중 고른 것을 켜짐으로 보여 준다. 켜짐은 View.isSelected 로 준다.
+     * 꺼짐: button/basic 바탕 + text/dark/secondary. 켜짐: button/switch 바탕 + 그림자 Level 2 + text/dark/primary.
+     */
+    fun toggle(context: Context, text: String, onClick: () -> Unit): Button {
+        val colors = palette(context)
+        val radius = context.px(TOGGLE.radius)
+        val border = context.px(DISABLED_BORDER_DP)
+        val enabled = android.R.attr.state_enabled
+        val selected = android.R.attr.state_selected
+        val pressed = android.R.attr.state_pressed
+        val textColors = ColorStateList(
+            arrayOf(intArrayOf(-enabled), intArrayOf(selected), intArrayOf()),
+            intArrayOf(colors.textQuaternary, colors.textPrimary, colors.textSecondary),
+        )
+        val background = StateListDrawable().apply {
+            addState(intArrayOf(-enabled, selected), insideStroke(context, colors.switchDisabled, colors.dividerSecondary, border, radius))
+            addState(intArrayOf(-enabled), insideStroke(context, colors.basicDisabled, colors.dividerSecondary, border, radius))
+            addState(intArrayOf(selected, pressed), raised(context, colors.switchPressed, radius))
+            addState(intArrayOf(selected), raised(context, colors.switchEnabled, radius))
+            addState(intArrayOf(pressed), rounded(context, colors.basicPressed, radius))
+            addState(intArrayOf(), rounded(context, colors.basicEnabled, radius))
+        }
+        return pleosButton(context, text, TOGGLE, textColors, background, onClick)
+    }
+
+    /** 바탕 + 그림자 Level 2 (토글 켜짐). 그림자는 경계 밖으로 그려지므로 부모가 자식을 자르지 않아야 보인다 (column). */
+    private fun raised(context: Context, fill: Int, radiusPx: Int) = LayerDrawable(
+        arrayOf(
+            ShadowDrawable(
+                radiusPx.toFloat(),
+                listOf(
+                    ShadowDrawable.Shadow(
+                        context.px(T.SHADOW_L2_FAR_Y).toFloat(),
+                        context.px(T.SHADOW_L2_FAR_BLUR).toFloat(),
+                        alpha("#000000", SHADOW_FAR_ALPHA_PERCENT),
+                    ),
+                    ShadowDrawable.Shadow(
+                        context.px(T.SHADOW_L2_NEAR_Y).toFloat(),
+                        context.px(T.SHADOW_L2_NEAR_BLUR).toFloat(),
+                        alpha("#000000", SHADOW_NEAR_ALPHA_PERCENT),
+                    ),
+                ),
+            ),
+            rounded(context, fill, radiusPx),
+        ),
+    )
+
+    /** 기본·토글 버튼 공통: 크기·글자색·바탕을 받아 Button 을 만든다. */
+    private fun pleosButton(
+        context: Context,
+        text: String,
+        size: ButtonSize,
+        textColors: ColorStateList,
+        backgroundDrawable: StateListDrawable,
+        onClick: () -> Unit,
+    ): Button = Button(context).apply {
+        this.text = text
+        style(size.text)
+        isAllCaps = false
+        // 기본 버튼 스타일은 한 줄만 보여 줘서 여러 줄 라벨이 잘린다
+        isSingleLine = false
+        maxLines = BUTTON_MAX_LINES
+        minHeight = context.px(size.height)
+        minimumHeight = context.px(size.height)
+        minWidth = context.px(size.minWidth)
+        minimumWidth = context.px(size.minWidth)
+        gravity = Gravity.CENTER
+        // 그림자·눌림 높이 변화를 없앤다 (Pleos 버튼은 평면). 토글 켜짐 그림자는 바탕 drawable 로 그린다
+        stateListAnimator = null
+        elevation = 0f
+        setTextColor(textColors)
+        background = backgroundDrawable
+        // 배경 drawable 이 뷰 패딩을 바꿀 수 있어 배경 뒤에 준다
+        val padH = context.px(size.paddingH)
+        val padV = context.px(size.paddingV)
+        setPadding(padH, padV, padH, padV)
+        layoutParams = spaced(context)
+        setOnClickListener { onClick() }
+    }
 
     /**
      * 목록 항목 (List/item). 제목·부제 뒤에 버튼(suffix)을 붙일 수 있다.
@@ -389,39 +464,45 @@ internal object Ui {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
         }
 
-    /** 입력칸 (ivi_text_field Medium). */
-    fun input(context: Context, hint: String, value: String = "", caps: Boolean = false): EditText = EditText(context).apply {
-        val colors = palette(context)
-        this.hint = hint
-        setText(value)
-        style(TITLE_MEDIUM_NORMAL)
-        setTextColor(colors.textPrimary)
-        setHintTextColor(colors.textTertiary)
-        isSingleLine = true
-        inputType = InputType.TYPE_CLASS_TEXT or (if (caps) InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS else 0)
-        // 가로 화면에선 키보드가 앱 전체를 덮는 전체 화면 입력으로 뜬다. 입력칸이 보이게 끈다
-        imeOptions = imeOptions or EditorInfo.IME_FLAG_NO_EXTRACT_UI
-        minHeight = context.px(T.FIELD_HEIGHT)
-        minimumHeight = context.px(T.FIELD_HEIGHT)
-        val radius = context.px(T.FIELD_RADIUS)
-        background = StateListDrawable().apply {
-            addState(
-                intArrayOf(android.R.attr.state_focused),
-                insideStroke(context, colors.fieldBackground, colors.fieldFocused, context.px(T.FIELD_FOCUSED_BORDER), radius),
-            )
-            addState(intArrayOf(), insideStroke(context, colors.fieldBackground, colors.dividerSecondary, context.px(T.FIELD_BORDER), radius))
-        }
-        // 배경 drawable 이 뷰 패딩을 바꿀 수 있어 배경 뒤에 준다
-        val padH = context.px(T.FIELD_PADDING_H)
-        setPadding(padH, 0, padH, 0)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            textCursorDrawable = GradientDrawable().apply {
-                setColor(colors.textPrimary)
-                setSize(context.px(CURSOR_WIDTH_DP), context.px(CURSOR_HEIGHT_DP))
+    /** 입력칸 (ivi_text_field Medium). password 면 입력 글자를 가린다. */
+    fun input(context: Context, hint: String, value: String = "", caps: Boolean = false, password: Boolean = false): EditText =
+        EditText(context).apply {
+            val colors = palette(context)
+            this.hint = hint
+            setText(value)
+            style(TITLE_MEDIUM_NORMAL)
+            setTextColor(colors.textPrimary)
+            setHintTextColor(colors.textTertiary)
+            isSingleLine = true
+            val font = typeface
+            inputType = InputType.TYPE_CLASS_TEXT or
+                (if (caps) InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS else 0) or
+                (if (password) InputType.TYPE_TEXT_VARIATION_PASSWORD else 0)
+            // 비밀번호 칸은 inputType 이 글꼴을 고정폭으로 바꾼다. Asta Sans 로 되돌린다
+            typeface = font
+            // 가로 화면에선 키보드가 앱 전체를 덮는 전체 화면 입력으로 뜬다. 입력칸이 보이게 끈다
+            imeOptions = imeOptions or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+            minHeight = context.px(T.FIELD_HEIGHT)
+            minimumHeight = context.px(T.FIELD_HEIGHT)
+            val radius = context.px(T.FIELD_RADIUS)
+            background = StateListDrawable().apply {
+                addState(
+                    intArrayOf(android.R.attr.state_focused),
+                    insideStroke(context, colors.fieldBackground, colors.fieldFocused, context.px(T.FIELD_FOCUSED_BORDER), radius),
+                )
+                addState(intArrayOf(), insideStroke(context, colors.fieldBackground, colors.dividerSecondary, context.px(T.FIELD_BORDER), radius))
             }
+            // 배경 drawable 이 뷰 패딩을 바꿀 수 있어 배경 뒤에 준다
+            val padH = context.px(T.FIELD_PADDING_H)
+            setPadding(padH, 0, padH, 0)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                textCursorDrawable = GradientDrawable().apply {
+                    setColor(colors.textPrimary)
+                    setSize(context.px(CURSOR_WIDTH_DP), context.px(CURSOR_HEIGHT_DP))
+                }
+            }
+            layoutParams = spaced(context)
         }
-        layoutParams = spaced(context)
-    }
 
     /**
      * 시스템 팝업 (ivi_system_popup Size=Medium). 제목·설명은 가운데, 버튼은 가로 두 개(왼쪽 filled = 주 동작).

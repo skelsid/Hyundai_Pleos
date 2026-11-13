@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Pleos background_secondary (밤) -->
+    <!-- Pleos background/primary = basic/50 (밤) -->
     <color name="background">#1D1E21</color>
 </resources>

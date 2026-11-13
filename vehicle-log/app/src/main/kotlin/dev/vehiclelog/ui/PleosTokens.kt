@@ -32,6 +32,19 @@ internal object PleosTokens {
     val BUTTON_MEDIUM_PADDING_V = Dimen(s = 16, w = 14, wf = 17) // buttons/basic/medium/padding_vertical
     val BUTTON_MEDIUM_MIN_WIDTH = Dimen(s = 120, w = 100, wf = 128) // buttons/basic/medium/min_width
 
+    // 토글 버튼 (ivi_toggle_button Large)
+    val TOGGLE_LARGE_HEIGHT = Dimen(s = 100, w = 84, wf = 106) // buttons/toggle/large/height
+    val TOGGLE_LARGE_RADIUS = Dimen(s = 32, w = 27, wf = 35) // buttons/toggle/large/radius_top_left
+    val TOGGLE_LARGE_PADDING_H = Dimen(s = 40, w = 34, wf = 42) // buttons/toggle/large/padding_horizontal
+    val TOGGLE_LARGE_PADDING_V = Dimen(s = 16, w = 14, wf = 17) // buttons/toggle/large/padding_vertical
+    val TOGGLE_LARGE_MIN_WIDTH = Dimen(s = 140, w = 116, wf = 148) // buttons/toggle/large/min_width
+
+    // 그림자 Level 2 (토글 버튼 켜짐). 색은 변수 없이 고정 #000000 16% / 8%
+    val SHADOW_L2_FAR_Y = Dimen(s = 8, w = 7, wf = 9) // shadow/level2/y1
+    val SHADOW_L2_FAR_BLUR = Dimen(s = 32, w = 27, wf = 32) // shadow/level2/blur1
+    val SHADOW_L2_NEAR_Y = Dimen(s = 2, w = 2, wf = 3) // shadow/level2/y2
+    val SHADOW_L2_NEAR_BLUR = Dimen(s = 2, w = 2, wf = 3) // shadow/level2/blur2
+
     // 입력칸 (ivi_text_field Medium)
     val FIELD_HEIGHT = Dimen(s = 100, w = 84, wf = 106) // fields/text/medium/height
     val FIELD_RADIUS = Dimen(s = 24, w = 20, wf = 26) // fields/text/medium/radius_top_left

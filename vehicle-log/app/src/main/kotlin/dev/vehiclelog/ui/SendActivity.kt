@@ -82,7 +82,7 @@ class SendActivity : Activity() {
         selected.retainAll(counts.map { it.first }.toSet())
         if (counts.isEmpty()) monthList.addView(Ui.body(this, "보낼 운행이 없습니다."))
         for ((month, count) in counts) {
-            val button = Ui.button(this, "") { toggle(month) }
+            val button = Ui.toggle(this, "") { toggle(month) }
             monthButtons[month] = button to count
             monthList.addView(button)
         }
@@ -98,8 +98,8 @@ class SendActivity : Activity() {
     private fun refresh() {
         for ((month, entry) in monthButtons) {
             val (button, count) = entry
-            val mark = if (month in selected) "● " else "○ "
-            button.text = "$mark${month.year}년 ${month.month}월 · 운행 ${count}건"
+            button.isSelected = month in selected
+            button.text = "${month.year}년 ${month.month}월 · 운행 ${count}건"
             button.isEnabled = !sending
         }
         sendButton.text = if (sending) "보내는 중…" else "관리자에게 보내기 (${selected.size}개월)"

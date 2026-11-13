@@ -49,7 +49,7 @@ vehicle-log/app/src/main/kotlin/dev/vehiclelog/
 색·글자·크기는 가이드가 배포하는 디자인 자산(`Pleos_Connect_design_assets_215.fig`)의 변수와 컴포넌트 값을 그대로 쓴다.
 크기는 화면 종류별 값(`connect-s` / `connect-w` / `connect-waterfall`)을 `ui/PleosTokens.kt` 에 옮겨 두고, 디스플레이 물리 해상도로 고른다(`ui/FormFactor.kt`: 긴 변 3840 = Wide, 3072 = Waterfall, 그 외 16:9 Standard). 레이아웃 문서에 따라 기존 Connect-L 은 Standard 로 본다.
 색은 Light/Dark 값이고 낮/밤은 시스템 설정을 따른다(`ui/Ui.kt`, `res/values(-night)`).
-컴포넌트는 상단바(`ivi_title` Main/Depth), 버튼(`ivi_basic_button` Large/Medium), 입력칸(`ivi_text_field` Medium), 목록 항목(`List/item`), 확인 창(`ivi_system_popup` Medium)을 옮겼다. 확인 창은 플랫폼 AlertDialog 대신 직접 그린다(AlertDialog 는 밤에도 밝게 그려진다).
+컴포넌트는 상단바(`ivi_title` Main/Depth), 버튼(`ivi_basic_button` Large/Medium), 토글 버튼(`ivi_toggle_button` Large: 운행 종료 화면의 사용자, 보내기 화면의 달 고르기), 입력칸(`ivi_text_field` Medium), 목록 항목(`List/item`), 확인 창(`ivi_system_popup` Medium)을 옮겼다. 확인 창은 플랫폼 AlertDialog 대신 직접 그린다(AlertDialog 는 밤에도 밝게 그려진다).
 글꼴은 가이드가 쓰는 Asta Sans(SIL OFL 1.1)를 앱에 넣었다. 라이선스 전문은 `app/src/main/assets/licenses/AstaSans-OFL.txt`.
 
 ## 빌드
