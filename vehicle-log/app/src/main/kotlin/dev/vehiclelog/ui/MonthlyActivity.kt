@@ -39,7 +39,7 @@ class MonthlyActivity : Activity() {
         monthLabel = Ui.title(this, "")
         summary = Ui.body(this, "")
         list = Ui.column(this).apply { setPadding(0, 0, 0, 0) }
-        root.addView(monthLabel)
+        root.addView(Ui.header(this, monthLabel))
         root.addView(Ui.row(this, Ui.button(this, "◀ 이전 달") { moveMonth(-1) }, Ui.button(this, "다음 달 ▶") { moveMonth(1) }))
         root.addView(summary)
         root.addView(Ui.button(this, "내보내기 (관리자 메일)") { startActivity(SendActivity.intent(this, YearMonth(year, month))) })
@@ -103,9 +103,9 @@ class MonthlyActivity : Activity() {
                 true -> "비업무"
                 false -> "업무용"
             }
-            val label = "${TripText.period(trip.startTime, trip.endTime)}  ${TripText.distance(distances[trip.id])}\n" +
-                "${TripText.route(trip.startPlace, trip.endPlace)}\n$user · $kind"
-            list.addView(Ui.button(this, label) { startActivity(TripEndActivity.editIntent(this, trip.id)) })
+            val title = "${TripText.period(trip.startTime, trip.endTime)}  ${TripText.distance(distances[trip.id])}"
+            val subtitle = "${TripText.route(trip.startPlace, trip.endPlace)}\n$user · $kind"
+            list.addView(Ui.listItem(this, title, subtitle) { startActivity(TripEndActivity.editIntent(this, trip.id)) })
         }
     }
 

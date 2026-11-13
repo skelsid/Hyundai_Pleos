@@ -107,7 +107,7 @@ class TripEndActivity : Activity() {
             remaining > 1 -> "운행이 끝났습니다 (미분류 ${remaining}건)"
             else -> "운행이 끝났습니다"
         }
-        root.addView(Ui.title(this, title))
+        root.addView(Ui.header(this, Ui.title(this, title)))
         val km = TripMath.distanceKm(target.startOdometerKm, target.endOdometerKm)
         root.addView(
             Ui.body(

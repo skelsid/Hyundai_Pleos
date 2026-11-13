@@ -16,7 +16,7 @@ class VehicleInfoActivity : Activity() {
         super.onCreate(savedInstanceState)
         val info = VehicleInfo.load(this)
         val root = Ui.column(this)
-        root.addView(Ui.title(this, "차량 정보"))
+        root.addView(Ui.header(this, Ui.title(this, "차량 정보")))
         val corporation = Ui.input(this, "법인명", info.corporation)
         val plate = Ui.input(this, "차량번호", info.plate)
         val model = Ui.input(this, "차종", info.model)

@@ -46,7 +46,9 @@ vehicle-log/app/src/main/kotlin/dev/vehiclelog/
 ```
 
 화면 모양은 [Pleos Connect UI 디자인 가이드](https://document.pleos.ai/en/docs/connect/guide/docs-design/)를 따른다.
-색·글자 크기·버튼 크기와 모서리는 가이드의 토큰 값을 그대로 쓰고, 낮/밤은 시스템 설정을 따른다(`ui/Ui.kt`, `res/values(-night)`).
+색·글자·크기는 가이드가 배포하는 디자인 자산(`Pleos_Connect_design_assets_215.fig`)의 변수와 컴포넌트 값을 그대로 쓴다.
+크기는 OS 기본 16:9 디스플레이용 `connect-s` 값, 색은 Light/Dark 값이고 낮/밤은 시스템 설정을 따른다(`ui/Ui.kt`, `res/values(-night)`).
+컴포넌트는 상단바(`ivi_title` Main/Depth), 버튼(`ivi_basic_button` Large/Medium), 입력칸(`ivi_text_field` Medium), 목록 항목(`List/item`)을 옮겼다.
 글꼴은 가이드가 쓰는 Asta Sans(SIL OFL 1.1)를 앱에 넣었다. 라이선스 전문은 `app/src/main/assets/licenses/AstaSans-OFL.txt`.
 
 ## 빌드

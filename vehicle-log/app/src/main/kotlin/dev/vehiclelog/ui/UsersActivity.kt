@@ -22,7 +22,7 @@ class UsersActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val root = Ui.column(this)
-        root.addView(Ui.title(this, "사용자 관리"))
+        root.addView(Ui.header(this, Ui.title(this, "사용자 관리")))
         val name = Ui.input(this, "이름")
         val department = Ui.input(this, "부서 (선택)")
         root.addView(name)
@@ -65,7 +65,8 @@ class UsersActivity : Activity() {
         if (users.isEmpty()) list.addView(Ui.body(this, "등록된 사용자가 없습니다."))
         for (user in users) {
             val label = user.name + (user.department?.let { " ($it)" } ?: "")
-            list.addView(Ui.row(this, Ui.body(this, label), Ui.button(this, "삭제") { confirmRemove(user, label) }))
+            val remove = Ui.button(this, "삭제", medium = true) { confirmRemove(user, label) }
+            list.addView(Ui.listItem(this, user.name, user.department, suffix = remove))
         }
     }
 

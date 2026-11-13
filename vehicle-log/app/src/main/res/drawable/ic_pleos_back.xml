@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pleos ic_arrow (Direction=left). 상단바 Depth 의 뒤로 아이콘, 56x56 (page_navigation/title/depth_icon_square). 색은 코드에서 tint 로 준다 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="56dp"
+    android:height="56dp"
+    android:viewportWidth="56"
+    android:viewportHeight="56">
+    <path
+        android:pathData="M36.5,12 L19.5,28 L36.5,44"
+        android:strokeWidth="4"
+        android:strokeColor="#FF000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

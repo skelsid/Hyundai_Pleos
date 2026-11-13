@@ -24,7 +24,7 @@ class AdminActivity : Activity() {
         super.onCreate(savedInstanceState)
         val current = AdminInfo.load(this)
         val root = Ui.column(this)
-        root.addView(Ui.title(this, if (firstRun) "관리자 등록" else "관리자 정보"))
+        root.addView(Ui.header(this, Ui.title(this, if (firstRun) "관리자 등록" else "관리자 정보")))
         root.addView(
             Ui.body(
                 this,

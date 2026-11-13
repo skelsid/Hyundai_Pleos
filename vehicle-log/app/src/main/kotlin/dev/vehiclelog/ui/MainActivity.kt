@@ -37,7 +37,7 @@ class MainActivity : Activity() {
         val root = Ui.column(this)
         status = Ui.body(this, "")
         classifyButton = Ui.button(this, "미분류 운행 분류") { startActivity(TripEndActivity.intent(this)) }
-        root.addView(Ui.title(this, "차량운행기록"))
+        root.addView(Ui.header(this, Ui.title(this, "차량운행기록"), main = true))
         root.addView(status)
         root.addView(classifyButton)
         root.addView(Ui.button(this, "월별 운행기록") { startActivity(Intent(this, MonthlyActivity::class.java)) })

@@ -41,7 +41,7 @@ class SendActivity : Activity() {
         initial?.let { selected += decode(it) }
 
         val root = Ui.column(this)
-        root.addView(Ui.title(this, "운행기록표 내보내기"))
+        root.addView(Ui.header(this, Ui.title(this, "운행기록표 내보내기")))
         adminText = Ui.body(this, "")
         root.addView(adminText)
         root.addView(Ui.button(this, "받는 사람·보내는 계정 바꾸기") { startActivity(AdminActivity.intent(this)) })
