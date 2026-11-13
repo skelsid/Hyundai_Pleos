@@ -1,5 +1,9 @@
 package dev.vehiclelog.ui
 
+import android.animation.Animator
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.animation.StateListAnimator
 import android.app.Activity
 import android.app.Dialog
 import android.content.Context
@@ -23,7 +27,9 @@ import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.ViewOutlineProvider
 import android.view.Window
+import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -65,6 +71,15 @@ internal object Ui {
     private const val SHADOW_NEAR_ALPHA_PERCENT = 8
     // .fig 버튼 Disabled 테두리 두께. 변수 없이 고정
     private const val DISABLED_BORDER_DP = 2
+
+    // 누름 효과: 95% 로 줄인다 (foundations/interaction). 걸리는 시간은 문서·.fig 에 값이 없어 짧게 정했다
+    private const val PRESSED_SCALE = 0.95f
+    private const val PRESS_DURATION_MS = 100L
+
+    // 입력칸 id. 화면을 다시 만들 때 입력하던 글자를 시스템이 되살리려면 id 가 같아야 한다.
+    // 안내 문구로 만들고, 앱 리소스(0x7f)·프레임워크(0x01) id 와 겹치지 않는 범위에 둔다
+    private const val INPUT_ID_BASE = 0x0B000000
+    private const val INPUT_ID_MASK = 0x00FFFFFF
 
     /** .fig 텍스트 스타일: 크기·줄높이 변수와 굵기. */
     private class TextStyle(val size: Dimen, val line: Dimen, val weight: Int)
@@ -117,6 +132,7 @@ internal object Ui {
         val dividerSecondary: Int, // divider/secondary
         val fieldBackground: Int, // field/background
         val fieldFocused: Int, // field/focused
+        val fieldReadOnly: Int, // surface/high (입력칸 Read Only 바탕)
         val itemPressed: Int, // surface/basic
         val popupBackground: Int, // background/popup
         val switchEnabled: Int, // button/switch/enabled (토글 켜짐)
@@ -145,6 +161,7 @@ internal object Ui {
         dividerSecondary = alpha("#131417", 10),
         fieldBackground = Color.parseColor("#FFFFFF"),
         fieldFocused = Color.parseColor("#313236"),
+        fieldReadOnly = Color.parseColor("#EDEEF2"),
         itemPressed = Color.parseColor("#FFFFFF"),
         popupBackground = Color.parseColor("#FFFFFF"),
         switchEnabled = Color.parseColor("#FFFFFF"),
@@ -168,6 +185,7 @@ internal object Ui {
         dividerSecondary = alpha("#FFFFFF", 10),
         fieldBackground = Color.parseColor("#131417"),
         fieldFocused = Color.parseColor("#EDEEF2"),
+        fieldReadOnly = Color.parseColor("#313236"),
         itemPressed = Color.parseColor("#1D1E21"),
         popupBackground = Color.parseColor("#313236"),
         switchEnabled = alpha("#FFFFFF", 20),
@@ -260,6 +278,7 @@ internal object Ui {
                 background = StateListDrawable().apply {
                     addState(intArrayOf(android.R.attr.state_pressed), rounded(activity, colors.basicPressed, activity.px(T.BUTTON_MEDIUM_RADIUS)))
                 }
+                stateListAnimator = pressShrink()
                 @Suppress("DEPRECATION")
                 setOnClickListener { activity.onBackPressed() }
             }
@@ -323,7 +342,7 @@ internal object Ui {
             arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf()),
             intArrayOf(colors.textQuaternary, if (filled) colors.textOnFilled else colors.textPrimary),
         )
-        // 눌림은 물결(ripple) 대신 색만 바꾼다. 주행 중 화면에 움직임을 두지 않는다 (Pleos 주행 중 UI 원칙)
+        // 눌림은 물결(ripple) 없이 바탕색을 바꾸고 95% 로 줄인다 (Pleos foundations/interaction)
         val background = StateListDrawable().apply {
             addState(
                 intArrayOf(-android.R.attr.state_enabled),
@@ -404,8 +423,8 @@ internal object Ui {
         minWidth = context.px(size.minWidth)
         minimumWidth = context.px(size.minWidth)
         gravity = Gravity.CENTER
-        // 그림자·눌림 높이 변화를 없앤다 (Pleos 버튼은 평면). 토글 켜짐 그림자는 바탕 drawable 로 그린다
-        stateListAnimator = null
+        // 눌림 높이 변화 대신 Pleos 누름 효과(축소)만 둔다. 토글 켜짐 그림자는 바탕 drawable 로 그린다
+        stateListAnimator = pressShrink()
         elevation = 0f
         setTextColor(textColors)
         background = backgroundDrawable
@@ -435,6 +454,7 @@ internal object Ui {
                     addState(intArrayOf(android.R.attr.state_pressed), rounded(context, colors.itemPressed, context.px(T.ITEM_RADIUS)))
                     addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
                 }
+                stateListAnimator = pressShrink()
                 setOnClickListener { onClick() }
             }
             val label = LinearLayout(context).apply {
@@ -469,6 +489,9 @@ internal object Ui {
         EditText(context).apply {
             val colors = palette(context)
             this.hint = hint
+            id = INPUT_ID_BASE or (hint.hashCode() and INPUT_ID_MASK)
+            // 비밀번호는 화면 상태 저장(Bundle)에 남기지 않는다
+            isSaveEnabled = !password
             setText(value)
             style(TITLE_MEDIUM_NORMAL)
             setTextColor(colors.textPrimary)
@@ -486,6 +509,11 @@ internal object Ui {
             minimumHeight = context.px(T.FIELD_HEIGHT)
             val radius = context.px(T.FIELD_RADIUS)
             background = StateListDrawable().apply {
+                // 주행 중 키보드가 막히면 Read Only 모양으로 둔다 (.fig ivi_text_field State=Read Only)
+                addState(
+                    intArrayOf(-android.R.attr.state_enabled),
+                    insideStroke(context, colors.fieldReadOnly, colors.dividerSecondary, context.px(T.FIELD_BORDER), radius),
+                )
                 addState(
                     intArrayOf(android.R.attr.state_focused),
                     insideStroke(context, colors.fieldBackground, colors.fieldFocused, context.px(T.FIELD_FOCUSED_BORDER), radius),
@@ -503,6 +531,31 @@ internal object Ui {
             }
             layoutParams = spaced(context)
         }
+
+    /**
+     * 입력칸을 쓸 수 있게/없게 한다. 막을 때는 [blockedHint] 를 안내 문구로 보이고 키보드를 내린다.
+     * 막았다 풀면 원래 안내 문구로 돌린다.
+     */
+    fun setTypingAllowed(field: EditText, allowed: Boolean, hint: String, blockedHint: String) {
+        if (field.isEnabled == allowed) return
+        field.isEnabled = allowed
+        field.hint = if (allowed) hint else blockedHint
+        if (!allowed) {
+            field.clearFocus()
+            field.context.getSystemService(InputMethodManager::class.java)?.hideSoftInputFromWindow(field.windowToken, 0)
+        }
+    }
+
+    /** 누르면 95% 로 줄고 떼면 돌아온다. 애니메이터는 뷰마다 따로 있어야 한다. */
+    private fun pressShrink(): StateListAnimator = StateListAnimator().apply {
+        addState(intArrayOf(android.R.attr.state_pressed, android.R.attr.state_enabled), scaleTo(PRESSED_SCALE))
+        addState(intArrayOf(), scaleTo(1f))
+    }
+
+    private fun scaleTo(scale: Float): Animator = AnimatorSet().apply {
+        playTogether(ObjectAnimator.ofFloat(null, View.SCALE_X, scale), ObjectAnimator.ofFloat(null, View.SCALE_Y, scale))
+        duration = PRESS_DURATION_MS
+    }
 
     /**
      * 시스템 팝업 (ivi_system_popup Size=Medium). 제목·설명은 가운데, 버튼은 가로 두 개(왼쪽 filled = 주 동작).
@@ -538,17 +591,19 @@ internal object Ui {
                     },
                     LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT),
                 )
-                addView(
-                    TextView(activity).apply {
+                // 설명이 화면보다 길면 버튼이 밀려나지 않게 설명만 스크롤한다 (weight 로 남는 높이까지만 쓴다)
+                val description = TextView(activity).apply {
                         text = message
                         style(BODY_LARGE_NORMAL)
                         setTextColor(colors.textSecondary)
                         gravity = Gravity.CENTER
-                    },
-                    LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = activity.px(T.POPUP_GAP) },
+                    }
+                addView(
+                    ScrollView(activity).apply { addView(description, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) },
+                    LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1f).apply { topMargin = activity.px(T.POPUP_GAP) },
                 )
             }
-            addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+            addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, 1f))
             val buttons = LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 val confirmButton = button(activity, confirm, filled = true) {
@@ -567,6 +622,10 @@ internal object Ui {
         dialog.window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             setLayout(activity.px(T.POPUP_WIDTH), WRAP_CONTENT)
+            // 입력칸 없는 대화상자는 키보드에 밀려 올라가지 않게 한다 (Pleos ime-window-resize-handling-guide)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                attributes = attributes.apply { fitInsetsTypes = WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars() }
+            }
         }
         return dialog
     }

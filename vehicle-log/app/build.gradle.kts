@@ -11,6 +11,8 @@ val keystore = Properties().apply { if (keystoreFile.exists()) keystoreFile.inpu
 android {
     namespace = "dev.vehiclelog"
     compileSdk = 36
+    // 주행 중 제한(CarUxRestrictions) API. SDK optional/android.car.jar 로 컴파일하고 기기의 라이브러리를 쓴다
+    useLibrary("android.car")
 
     defaultConfig {
         applicationId = "dev.vehiclelog"

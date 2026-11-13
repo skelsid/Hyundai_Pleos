@@ -4,7 +4,9 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import dev.vehiclelog.AppLog
 import dev.vehiclelog.data.AdminInfo
@@ -21,6 +23,7 @@ import java.util.concurrent.Executors
 /**
  * 첫 화면. 설치 직후에는 부팅 이벤트가 없으므로 여기서 운행 감지를 시작한다.
  * 처음 실행하면 관리자 등록 → 종료 화면 자동 표시 허용 순서로 안내한다.
+ * 주행 중 제한이 걸리면 설정·관리 화면(distractionOptimized 아님)으로 가는 버튼을 끄고, 첫 실행 안내도 정차 뒤로 미룬다.
  * 시연용 재생 모드: `adb shell am start --user 10 -n dev.vehiclelog/.ui.MainActivity --ez replay true` 뒤 확인 창에서 [바꾸기]
  */
 class MainActivity : Activity() {
@@ -30,6 +33,12 @@ class MainActivity : Activity() {
     private lateinit var classifyButton: Button
     private lateinit var screenAccessButton: Button
     private lateinit var replayButton: Button
+    private lateinit var drivingNote: TextView
+    private lateinit var drivingState: DrivingState
+    private var rules = DrivingRules.PARKED
+
+    // 주행 중에는 시스템이 막는 화면으로 가는 버튼
+    private val parkedOnly = mutableListOf<Button>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,18 +48,38 @@ class MainActivity : Activity() {
         root.addView(Ui.header(this, Ui.title(this, "차량운행기록"), main = true))
         root.addView(status)
         root.addView(classifyButton)
-        root.addView(Ui.button(this, "월별 운행기록") { startActivity(Intent(this, MonthlyActivity::class.java)) })
-        root.addView(Ui.button(this, "사용자 관리") { startActivity(Intent(this, UsersActivity::class.java)) })
-        root.addView(Ui.button(this, "차량 정보") { startActivity(Intent(this, VehicleInfoActivity::class.java)) })
-        root.addView(Ui.button(this, "관리자 정보") { startActivity(AdminActivity.intent(this)) })
+        drivingNote = Ui.body(this, "주행 중에는 운행 분류만 쓸 수 있습니다. 나머지는 정차 후 이용해 주세요.").apply {
+            visibility = View.GONE
+        }
+        root.addView(drivingNote)
+        addParkedOnly(root, Ui.button(this, "월별 운행기록") { startActivity(Intent(this, MonthlyActivity::class.java)) })
+        addParkedOnly(root, Ui.button(this, "사용자 관리") { startActivity(Intent(this, UsersActivity::class.java)) })
+        addParkedOnly(root, Ui.button(this, "차량 정보") { startActivity(Intent(this, VehicleInfoActivity::class.java)) })
+        addParkedOnly(root, Ui.button(this, "관리자 정보") { startActivity(AdminActivity.intent(this)) })
         screenAccessButton = Ui.button(this, "운행 종료 화면 자동 표시 켜기") { askScreenAccess() }
-        root.addView(screenAccessButton)
+        addParkedOnly(root, screenAccessButton)
         // 에뮬레이터는 기어·주행거리를 바꿀 수 없다. 심사·시연 때 adb 없이 켤 수 있게 화면에 둔다
         replayButton = Ui.button(this, "") { confirmReplay(!Settings.replayMode(this)) }
-        root.addView(replayButton)
+        addParkedOnly(root, replayButton)
         setContentView(Ui.screen(this, root))
+        drivingState = DrivingState(this) { applyRules(it) }
+        drivingState.start()
         applyReplayExtra(intent)
         TripService.start(this)
+    }
+
+    private fun addParkedOnly(root: LinearLayout, button: Button) {
+        parkedOnly += button
+        root.addView(button)
+    }
+
+    private fun applyRules(next: DrivingRules) {
+        val parked = rules.restricted && !next.restricted
+        rules = next
+        parkedOnly.forEach { it.isEnabled = !next.restricted }
+        drivingNote.visibility = if (next.restricted) View.VISIBLE else View.GONE
+        // 주행 중이라 미룬 첫 실행 안내를 정차하면 이어 한다
+        if (parked && hasWindowFocus()) firstRunSteps()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -61,6 +90,12 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         refresh()
+        firstRunSteps()
+    }
+
+    /** 처음 실행 안내. 관리자 등록·설정 화면은 주행 중 막히므로 정차했을 때만 연다. */
+    private fun firstRunSteps() {
+        if (rules.restricted) return
         when {
             AdminInfo.load(this) == null -> startActivity(AdminActivity.intent(this, firstRun = true))
             !Settings.screenAccessAsked(this) -> {
@@ -167,7 +202,7 @@ class MainActivity : Activity() {
                 status.text = "운행 감지 중 · 신호: ${if (replay) "재생(시연)" else "실차"}\n저장된 운행: ${count}건\n" +
                     "타이어 공기압: $tireText\n종료 화면 자동 표시: $screen"
                 // 다른 앱 위에 표시까지 받으면 더 물을 게 없으므로 버튼을 숨긴다
-                screenAccessButton.visibility = if (ScreenAccess.canDrawOverApps(this)) android.view.View.GONE else android.view.View.VISIBLE
+                screenAccessButton.visibility = if (ScreenAccess.canDrawOverApps(this)) View.GONE else View.VISIBLE
                 replayButton.text = if (replay) "시연 모드 끄기 (실차 신호로)" else "시연 모드 켜기 (가짜 운행 재생)"
                 classifyButton.text = "미분류 운행 분류 (${unclassified}건)"
                 classifyButton.isEnabled = unclassified > 0
@@ -176,6 +211,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        drivingState.stop()
         io.shutdown()
         super.onDestroy()
     }
