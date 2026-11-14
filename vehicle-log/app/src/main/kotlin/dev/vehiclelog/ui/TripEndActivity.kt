@@ -10,6 +10,7 @@ import android.text.InputFilter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import dev.vehiclelog.AppLog
 import dev.vehiclelog.data.Trip
@@ -36,6 +37,7 @@ class TripEndActivity : Activity() {
     private lateinit var root: LinearLayout
     private var trip: Trip? = null
     private var selectedUserId: Long? = null
+    private var titleView: TextView? = null
     private var placeInput: EditText? = null
     private var userButton: Button? = null
     private var userPopup: Dialog? = null
@@ -89,6 +91,17 @@ class TripEndActivity : Activity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // 운행을 보고 있는 중에 다른 운행이 끝나 다시 불리면 보던 운행을 그대로 둔다. 화면을 새 운행으로 바꾸면
+        // 입력하던 도착지가 사라지고, 누르려던 버튼 자리에 다른 운행이 와서 엉뚱한 운행을 분류하게 된다.
+        // 새 운행은 이 운행을 저장한 뒤 이어서 나온다. 분류를 고치던 중이면 알림을 남겨 나중에 열 수 있게 한다
+        if (trip != null) {
+            if (!editing) {
+                getSystemService(NotificationManager::class.java).cancel(TripService.TRIP_END_NOTIFICATION_ID)
+                refreshRemaining()
+            }
+            return
+        }
+        getSystemService(NotificationManager::class.java).cancel(TripService.TRIP_END_NOTIFICATION_ID)
         setIntent(intent)
         editing = intent.getBooleanExtra(EXTRA_EDIT, false)
         load(intent.getLongExtra(EXTRA_TRIP_ID, NO_TRIP))
@@ -154,12 +167,9 @@ class TripEndActivity : Activity() {
         userPopup?.dismiss()
         root.removeAllViews()
 
-        val title = when {
-            editing -> "운행 분류 수정"
-            remaining > 1 -> "운행이 끝났습니다 (미분류 ${remaining}건)"
-            else -> "운행이 끝났습니다"
-        }
-        root.addView(Ui.header(this, Ui.title(this, title)))
+        val title = Ui.title(this, titleText(remaining))
+        titleView = title
+        root.addView(Ui.header(this, title))
         val km = target.distanceKm
         root.addView(
             Ui.body(
@@ -208,6 +218,21 @@ class TripEndActivity : Activity() {
         )
         root.addView(Ui.button(this, "나중에") { finish() })
         applyRules(rules)
+    }
+
+    private fun titleText(remaining: Int): String = when {
+        editing -> "운행 분류 수정"
+        remaining > 1 -> "운행이 끝났습니다 (미분류 ${remaining}건)"
+        else -> "운행이 끝났습니다"
+    }
+
+    /** 제목의 미분류 건수만 다시 읽는다. 화면의 다른 부분은 그대로 둔다 (버튼 자리가 움직이지 않게). */
+    private fun refreshRemaining() {
+        if (isDestroyed) return
+        io.execute {
+            val remaining = TripStore.get(this).unclassifiedCount()
+            runOnUiThread { titleView?.text = titleText(remaining) }
+        }
     }
 
     private fun applyRules(next: DrivingRules) {
