@@ -80,7 +80,7 @@ class MainActivity : Activity() {
         addAdminOnly(root, Ui.button(this, "사용자 관리") { startActivity(UsersActivity.adminIntent(this)) })
         addAdminOnly(root, Ui.button(this, "차량 정보") { startActivity(Intent(this, VehicleInfoActivity::class.java)) })
         addAdminOnly(root, Ui.button(this, "관리자 정보") { startActivity(AdminActivity.intent(this)) })
-        // 다른 앱 위에 표시까지 받으면 더 물을 게 없어 숨긴다 (updateAccess). 그래서 adminOnly 에 넣지 않는다
+        // 더 받을 허용이 없거나 허용 설정 화면을 열 수 없으면 숨긴다 (updateAccess). 그래서 adminOnly 에 넣지 않는다
         screenAccessButton = Ui.button(this, "운행 종료 화면 자동 표시 켜기") { askScreenAccess() }
         addParkedOnly(root, screenAccessButton)
         // 에뮬레이터는 기어·주행거리를 바꿀 수 없다. 심사·시연 때 adb 없이 켤 수 있게 화면에 둔다
@@ -130,7 +130,7 @@ class MainActivity : Activity() {
         adminOnly.forEach { it.visibility = if (unlocked) View.VISIBLE else View.GONE }
         // 비밀번호를 정하기 전(처음 등록 전)에는 열 것이 없다
         unlockButton.visibility = if (agreed && !unlocked && AdminPin.isSet(this)) View.VISIBLE else View.GONE
-        screenAccessButton.visibility = if (unlocked && !ScreenAccess.canDrawOverApps(this)) View.VISIBLE else View.GONE
+        screenAccessButton.visibility = if (unlocked && ScreenAccess.canAskMore(this)) View.VISIBLE else View.GONE
         consentButton.visibility = if (agreed) View.GONE else View.VISIBLE
         consentButton.isEnabled = !rules.restricted
         drivingNote.visibility = if (rules.restricted) View.VISIBLE else View.GONE

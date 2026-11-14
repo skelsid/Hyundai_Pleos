@@ -32,6 +32,17 @@ object ScreenAccess {
     fun canShowTripEnd(context: Context): Boolean =
         canDrawOverApps(context) || (notificationsAllowed(context) && fullScreenAllowed(context))
 
+    /**
+     * 종료 화면 자동 표시를 위해 더 받을 것이 남았는가 — 알림 허용을 아직 못 받았거나, 열 수 있는 허용 설정 화면이 있다.
+     * 없으면 메인 화면의 [켜기] 버튼을 숨긴다 (눌러도 바뀌는 것이 없다).
+     */
+    fun canAskMore(context: Context): Boolean {
+        if (canDrawOverApps(context)) return false
+        return !notificationsAllowed(context) ||
+            overlaySettings(context) != null ||
+            (!fullScreenAllowed(context) && fullScreenSettings(context) != null)
+    }
+
     /** "다른 앱 위에 표시" 설정 화면. 차량 설정 앱에 이 화면이 없으면 null. */
     fun overlaySettings(context: Context): Intent? =
         Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName))
