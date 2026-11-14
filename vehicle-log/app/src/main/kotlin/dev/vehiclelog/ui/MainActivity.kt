@@ -218,10 +218,13 @@ class MainActivity : Activity() {
             Ui.popup(
                 this,
                 title = "종료 화면 알림",
-                message = if (ScreenAccess.canShowTripEnd(this)) {
-                    "운행이 끝나면 알림으로 종료 화면을 띄웁니다."
-                } else {
-                    "이 차량에서는 허용 설정 화면을 열 수 없습니다. 운행이 끝나면 알림으로 알려 드립니다."
+                message = when {
+                    ScreenAccess.canShowTripEnd(this) -> "운행이 끝나면 알림으로 종료 화면을 띄웁니다."
+                    // 알림까지 막혀 있으면 알릴 방법이 없다. 있는 그대로 말하고 분류할 곳을 알려 준다
+                    !ScreenAccess.notificationsAllowed(this) ->
+                        "알림이 꺼져 있어 운행이 끝나도 알려 드리지 못합니다. " +
+                            "메인 화면의 [미분류 운행 분류]에서 분류하거나, [운행 종료 화면 자동 표시 켜기]로 알림을 허용해 주세요."
+                    else -> "이 차량에서는 허용 설정 화면을 열 수 없습니다. 운행이 끝나면 알림으로 알려 드립니다."
                 },
                 confirm = "확인",
             )
