@@ -28,7 +28,7 @@ import java.util.concurrent.Executors
  * 첫 화면. 설치 직후에는 부팅 이벤트가 없으므로 여기서 운행 감지를 시작한다.
  * 처음 실행하면 개인정보 수집 동의 → 관리자 등록 → 종료 화면 자동 표시 허용 순서로 안내한다.
  * 동의하지 않으면 운행을 기록하지 않고, 동의 버튼만 남긴다.
- * 운전자는 운행 분류만 한다. 나머지(월별 기록·사용자·차량·관리자 정보·설정)는 관리자 메뉴이고,
+ * 운전자는 운행 분류와 월별 기록 보기·분류 수정만 한다. 나머지(내보내기·사용자·차량·관리자 정보·설정)는 관리자 메뉴이고,
  * 관리자 비밀번호([PinActivity])를 넣은 뒤 앱이 화면에 떠 있는 동안만 보인다 ([AdminSession]).
  * 주행 중 제한이 걸리면 설정·관리 화면(distractionOptimized 아님)으로 가는 버튼을 끄고, 첫 실행 안내도 정차 뒤로 미룬다.
  * 시연용 재생 모드: `adb shell am start --user 10 -n dev.vehiclelog/.ui.MainActivity --ez replay true` 뒤 확인 창에서 [바꾸기]
@@ -71,10 +71,11 @@ class MainActivity : Activity() {
             visibility = View.GONE
         }
         root.addView(drivingNote)
+        // 기록을 보고 분류를 고치는 것은 운전자도 한다 (내보내기는 그 화면 안에서 관리자만)
+        addParkedOnly(root, Ui.button(this, "월별 운행기록 · 분류 수정") { startActivity(Intent(this, MonthlyActivity::class.java)) })
         // 비밀번호 화면은 입력 칸이 있어 주행 중에는 시스템이 막는다
         unlockButton = Ui.button(this, "관리자 메뉴 열기") { startActivity(Intent(this, PinActivity::class.java)) }
         addParkedOnly(root, unlockButton)
-        addAdminOnly(root, Ui.button(this, "월별 운행기록") { startActivity(Intent(this, MonthlyActivity::class.java)) })
         addAdminOnly(root, Ui.button(this, "사용자 관리") { startActivity(UsersActivity.adminIntent(this)) })
         addAdminOnly(root, Ui.button(this, "차량 정보") { startActivity(Intent(this, VehicleInfoActivity::class.java)) })
         addAdminOnly(root, Ui.button(this, "관리자 정보") { startActivity(AdminActivity.intent(this)) })

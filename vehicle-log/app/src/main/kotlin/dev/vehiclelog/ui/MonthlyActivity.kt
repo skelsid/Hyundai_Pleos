@@ -2,6 +2,8 @@ package dev.vehiclelog.ui
 
 import android.app.Activity
 import android.os.Bundle
+import android.view.View
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import dev.vehiclelog.data.Trip
@@ -20,6 +22,8 @@ import java.util.concurrent.Executors
  * 목록이 길어 주행 중에는 열지 않는다 (distractionOptimized 아님 — 시스템이 막는다).
  */
 class MonthlyActivity : Activity() {
+
+    private lateinit var exportButton: Button
 
     private val io = Executors.newSingleThreadExecutor()
     private val zone: TimeZone = TimeZone.getDefault()
@@ -42,15 +46,16 @@ class MonthlyActivity : Activity() {
         root.addView(Ui.header(this, monthLabel))
         root.addView(Ui.row(this, Ui.button(this, "이전 달") { moveMonth(-1) }, Ui.button(this, "다음 달") { moveMonth(1) }))
         root.addView(summary)
-        root.addView(Ui.button(this, "내보내기 (관리자 메일)") { startActivity(SendActivity.intent(this, YearMonth(year, month))) })
+        exportButton = Ui.button(this, "내보내기 (관리자 메일)") { startActivity(SendActivity.intent(this, YearMonth(year, month))) }
+        root.addView(exportButton)
         root.addView(list)
         setContentView(Ui.screen(this, root))
     }
 
     override fun onStart() {
         super.onStart()
-        // 관리 화면이다. 앱을 떠났다 돌아와 잠겼으면 닫는다
-        AdminSession.requireUnlocked(this)
+        // 기록을 보고 분류를 고치는 것은 운전자도 한다. 내보내기는 관리자 비밀번호를 넣은 동안만 보인다
+        exportButton.visibility = if (AdminSession.unlocked) View.VISIBLE else View.GONE
     }
 
     override fun onResume() {
