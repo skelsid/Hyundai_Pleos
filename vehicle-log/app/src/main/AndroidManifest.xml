@@ -14,6 +14,8 @@
     <uses-permission android:name="pleos.car.permission.CAR_ENERGY" />
     <!-- getTirePressure 가 요구한다. App Market 허용 여부는 미확인 -->
     <uses-permission android:name="pleos.car.permission.PRIVATE_CAR_SAFETY" />
+    <!-- 차대번호·차량 등록번호 조회 (차량 정보 화면의 빈 칸을 채운다) -->
+    <uses-permission android:name="pleos.car.permission.CAR_INFO" />
     <uses-permission android:name="pleos.car.permission.FUSED_LOCATION" />
     <!-- 문서엔 없지만 TextToSpeech.initialize() 가 이 퍼미션 없으면 SecurityException 을 던진다 (에뮬레이터 v2.1.0 실측) -->
     <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />

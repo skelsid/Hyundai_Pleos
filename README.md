@@ -32,7 +32,7 @@
 
 | SDK | 버전 | 용도 | 퍼미션 |
 |---|---|---|---|
-| Vehicle | 2.3.2 | 기어, 계기판 누적거리·트립 미터, 타이어 공기압·저압 기준값, 엔진오일·브레이크액·변속기오일 수준, 연료·배터리 잔량 | `CAR_DRIVE`, `CAR_SAFETY`, `CAR_ENERGY`, `PRIVATE_CAR_SAFETY` |
+| Vehicle | 2.3.2 | 기어, 계기판 누적거리·트립 미터, 타이어 공기압·저압 기준값, 엔진오일·브레이크액·변속기오일 수준, 연료·배터리 잔량, 계기판 경고등, 차대번호·차량 등록번호 | `CAR_DRIVE`, `CAR_SAFETY`, `CAR_ENERGY`, `CAR_INFO`, `PRIVATE_CAR_SAFETY` |
 | FusedLocation | 1.1.3 | 출발·도착 위치 | `FUSED_LOCATION` |
 | NaviHelper | 3.0.5 | 도착지 이름, 현재 위치 주소 | `NAVI_ROUTE` |
 | TextToSpeech | 3.3.1 | 운행 종료·타이어 음성 안내 (기기 내 엔진) | `TTS_SERVICE` |
