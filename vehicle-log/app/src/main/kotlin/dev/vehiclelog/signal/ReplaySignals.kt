@@ -28,6 +28,8 @@ data class ReplayStep(
     val fluids: Map<Fluid, FluidLevel> = emptyMap(),
     /** 켜져 있는 경고등의 TelltaleType 이름들. 없으면 경고등 없음 */
     val warnings: List<String> = emptyList(),
+    /** 내비에 찍은 목적지 이름. 없으면 목적지 없이 도착한 것으로 본다 */
+    val destinationName: String? = null,
 )
 
 /**
@@ -58,6 +60,7 @@ class ReplaySignals(private val steps: List<ReplayStep>) : VehicleSignals {
         callback(
             TripPoint(
                 System.currentTimeMillis(), step?.odometerKm, step?.latitude, step?.longitude, step?.placeName,
+                destinationName = step?.destinationName,
                 energy = step?.fuelPercent?.let { EnergyLevel(it, battery = false) },
             ),
         )
@@ -114,6 +117,7 @@ class ReplaySignals(private val steps: List<ReplayStep>) : VehicleSignals {
                         }.toMap()
                     }.orEmpty(),
                     warnings = o.optJSONArray("warnings")?.let { w -> List(w.length()) { j -> w.getString(j) } }.orEmpty(),
+                    destinationName = o.optString("destination").takeIf { it.isNotBlank() },
                 )
             }
         }

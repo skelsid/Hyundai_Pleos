@@ -36,6 +36,8 @@ data class LogRow(
     val tripMeterKm: Double? = null,
     val startEnergy: EnergyLevel? = null,
     val endEnergy: EnergyLevel? = null,
+    /** 운행 목적/방문처 칸. 도착지(주소)와 다른 이름이 있을 때만 */
+    val visitPlace: String? = null,
 )
 
 /**
@@ -113,6 +115,7 @@ object LogbookXlsx {
             edits.number("E$r", row.endMillis?.let { excelSerial(it, zone) })
             edits.text("F$r", row.startPlace)
             edits.text("G$r", row.endPlace)
+            edits.text("H$r", row.visitPlace)
             edits.number("I$r", row.startKm)
             edits.number("J$r", row.endKm)
             edits.boolean("L$r", row.nonBusiness == true)

@@ -24,6 +24,8 @@ data class Trip(
     val endTripMeterKm: Double? = null,
     val startEnergy: EnergyLevel? = null,
     val endEnergy: EnergyLevel? = null,
+    /** 도착했을 때 차량이 준 주소. endPlace 는 내비 목적지나 운행 종료 화면에서 고친 이름일 수 있어 따로 둔다. */
+    val endAddress: String? = null,
 ) {
     /** 주행거리. 계기판 누적거리 차이를 먼저 쓰고, 없으면 트립 미터 차이를 쓴다. */
     val distanceKm: Double? get() = TripMath.tripDistanceKm(startOdometerKm, endOdometerKm, startTripMeterKm, endTripMeterKm)
@@ -67,7 +69,8 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
                 end_place TEXT,
                 user_id INTEGER REFERENCES users(id),
                 non_business INTEGER,
-                $V2_COLUMNS
+                $V2_COLUMNS,
+                $V3_COLUMN
             )
             """.trimIndent(),
         )
@@ -89,6 +92,8 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
         if (oldVersion < 2) {
             for (column in V2_COLUMNS.split(",")) db.execSQL("ALTER TABLE trips ADD COLUMN ${column.trim()}")
         }
+        // 3: 도착 주소 칸 추가. 운행기록표에서 도착지(주소)와 방문처(이름)를 나눠 적는 데 쓴다
+        if (oldVersion < 3) db.execSQL("ALTER TABLE trips ADD COLUMN $V3_COLUMN")
     }
 
     fun openTrip(): Trip? =
@@ -121,6 +126,7 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
             // 출발 때 못 받았으면 도착 때 받은 종류를 남긴다
             point.energy?.let { put("energy_battery", if (it.battery) 1 else 0) }
             put("end_place", point.endPlaceName)
+            put("end_address", point.placeName)
         }
         writableDatabase.update("trips", values, "id = ?", arrayOf(id.toString()))
     }
@@ -273,6 +279,7 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
             endTripMeterKm = doubleOrNull("end_trip_km"),
             startEnergy = energy("start_energy"),
             endEnergy = energy("end_energy"),
+            endAddress = stringOrNull("end_address"),
         )
     }
 
@@ -287,8 +294,9 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
 
     companion object {
         private const val DB_NAME = "vehicle_log.db"
-        private const val DB_VERSION = 2
+        private const val DB_VERSION = 3
         private const val V2_COLUMNS = "start_trip_km REAL, end_trip_km REAL, start_energy INTEGER, end_energy INTEGER, energy_battery INTEGER"
+        private const val V3_COLUMN = "end_address TEXT"
         private const val UNCLASSIFIED = "end_time IS NOT NULL AND non_business IS NULL"
 
         @Volatile

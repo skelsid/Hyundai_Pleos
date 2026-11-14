@@ -49,6 +49,17 @@ class LogbookXlsxTest {
     }
 
     @Test
+    fun test_write_visitPlaceGiven_fillsPurposeColumn() {
+        val parts = export(listOf(row(0).copy(endPlace = "경기 성남시 분당구 판교역로", visitPlace = "○○상사"), row(1)))
+        val sheet = parts.getValue("xl/worksheets/sheet1.xml")
+        assertWellFormed(parts)
+        assertTrue(cell(sheet, "G11").contains("경기 성남시 분당구 판교역로"))
+        assertTrue(cell(sheet, "H11").contains("○○상사"))
+        // 방문처가 없는 줄은 양식의 빈 칸 그대로
+        assertFalse(cell(sheet, "H12").contains("<is>"))
+    }
+
+    @Test
     fun test_excelSerial_seoulMorning_matchesExcel() {
         assertEquals(46_335.375, LogbookXlsx.excelSerial(nineAm, seoul), 1e-9)
     }

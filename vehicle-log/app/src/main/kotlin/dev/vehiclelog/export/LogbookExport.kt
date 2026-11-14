@@ -6,6 +6,7 @@ import dev.vehiclelog.AppLog
 import dev.vehiclelog.data.TripStore
 import dev.vehiclelog.data.VehicleInfo
 import dev.vehiclelog.trip.TripMath
+import dev.vehiclelog.trip.TripText
 import java.io.File
 import java.util.Calendar
 import java.util.Locale
@@ -44,6 +45,17 @@ object LogbookExport {
         return deleted
     }
 
+    /**
+     * 기록표의 (도착지, 방문처) 칸에 넣을 값. 차량이 준 도착 주소가 있으면 도착지에는 주소를,
+     * 방문처에는 그와 다른 이름(내비 목적지, 운행 종료 화면에서 고친 이름)을 적는다.
+     * 주소가 없으면 이름이 도착지로 가고 방문처는 비운다 (같은 값을 두 칸에 적지 않는다).
+     */
+    fun endColumns(endPlace: String?, endAddress: String?): Pair<String?, String?> {
+        val name = endPlace?.let(TripText::cleanPlace)
+        val address = endAddress?.let(TripText::cleanPlace) ?: return name to null
+        return address to name?.takeIf { it != address }
+    }
+
     fun export(context: Context, year: Int, month: Int, zone: TimeZone = TimeZone.getDefault()): File {
         val (start, end) = TripMath.monthRange(year, month, zone)
         val store = TripStore.get(context)
@@ -61,18 +73,20 @@ object LogbookExport {
             period = String.format(Locale.KOREA, "%d-%02d-01 ~ %d-%02d-%02d", year, month, year, month, lastDay),
         )
         val rows = trips.map {
+            val (endPlace, visitPlace) = endColumns(it.endPlace, it.endAddress)
             LogRow(
                 startMillis = it.startTime,
                 endMillis = it.endTime,
                 user = it.userId?.let(names::get),
                 startPlace = it.startPlace,
-                endPlace = it.endPlace,
+                endPlace = endPlace,
                 startKm = it.startOdometerKm,
                 endKm = it.endOdometerKm,
                 nonBusiness = it.nonBusiness,
                 tripMeterKm = it.distanceKm.takeIf { _ -> it.distanceFromTripMeter },
                 startEnergy = it.startEnergy,
                 endEnergy = it.endEnergy,
+                visitPlace = visitPlace,
             )
         }
         val dir = File(context.cacheDir, EXPORT_DIR)

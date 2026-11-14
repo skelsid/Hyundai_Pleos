@@ -1,7 +1,7 @@
 [
   {"delayMs": 3000, "gear": "PARK", "odometerKm": 25000.0, "lat": 37.5172, "lon": 127.0473, "place": "본사", "fuel": 14},
   {"delayMs": 4000, "gear": "MOVING", "odometerKm": 25000.0, "lat": 37.5172, "lon": 127.0473, "place": "본사", "fuel": 14, "tires": [36.0, 36.0, 35.5, 36.0], "warnings": ["LOW_FUEL", "SEAT_BELT"]},
-  {"delayMs": 8000, "gear": "PARK", "odometerKm": 25042.3, "lat": 37.4012, "lon": 127.1086, "place": "○○상사", "fuel": 11},
+  {"delayMs": 8000, "gear": "PARK", "odometerKm": 25042.3, "lat": 37.4012, "lon": 127.1086, "place": "경기 성남시 분당구 판교역로", "destination": "○○상사", "fuel": 11},
   {"delayMs": 20000, "gear": "MOVING", "odometerKm": 25042.3, "lat": 37.4012, "lon": 127.1086, "fuel": 62, "tires": [36.0, 35.5, 30.0, 36.0], "fluids": {"ENGINE_OIL": "LOW"}, "warnings": ["TPMS", "ENGINE"]},
-  {"delayMs": 15000, "gear": "PARK", "odometerKm": 25047.8, "lat": 37.3947, "lon": 127.1112, "place": "식당", "fuel": 61}
+  {"delayMs": 15000, "gear": "PARK", "odometerKm": 25047.8, "lat": 37.3947, "lon": 127.1112, "place": "경기 성남시 분당구 운중로", "destination": "식당", "fuel": 61}
 ]
