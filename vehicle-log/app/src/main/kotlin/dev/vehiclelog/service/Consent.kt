@@ -24,14 +24,14 @@ object Consent {
 
     const val TITLE = "개인정보 수집·이용 동의"
 
-    // 수집 항목은 실제로 저장하는 것과 맞춘다: TripStore(운행·사용자), AdminInfo, MailAccount, VehicleInfo, TireStatus
+    // 수집 항목은 실제로 저장하는 것과 맞춘다: TripStore(운행·사용자), AdminInfo, MailAccount, VehicleInfo, TireStatus, WarningStatus
     val NOTICE = """
         차량운행기록은 업무용 차량 운행기록표를 만들려고 아래 정보를 이 차량 안에만 저장합니다.
 
         [수집 항목]
         · 운행: 시작·종료 시각, 계기판 누적 거리·트립 거리, 연료(배터리) 잔량, 출발·도착 위치(좌표·주소), 내비 목적지, 업무용 여부
         · 사람: 운전자 이름·부서, 관리자 이름·메일, 보내는 메일 계정(비밀번호는 암호화)
-        · 차량: 법인명, 차량번호, 차종, 차대번호, 부서, 출발 점검 결과(타이어 공기압, 엔진오일·브레이크액·변속기오일)
+        · 차량: 법인명, 차량번호, 차종, 차대번호, 부서, 출발 점검 결과(타이어 공기압, 엔진오일·브레이크액·변속기오일, 계기판 경고등)
 
         [이용 목적] 월별 운행기록표(엑셀) 작성, 관리자 메일 발송
         [보관 기간] 동의를 철회하거나 앱을 지울 때까지. 철회하면 바로 모두 지웁니다.
@@ -56,7 +56,10 @@ object Consent {
         // 먼저 동의를 거둬, 아직 끝나지 않은 서비스 작업이 더 기록하지 않게 한다
         if (!prefs(context).edit().clear().commit()) AppLog.warn("consent.clear.failed")
         TripStore.get(context).eraseAll()
-        val cleared = listOf(AdminInfo.clear(context), AdminPin.clear(context), VehicleInfo.clear(context), TireStatus.clear(context))
+        val cleared = listOf(
+            AdminInfo.clear(context), AdminPin.clear(context), VehicleInfo.clear(context),
+            TireStatus.clear(context), WarningStatus.clear(context),
+        )
         if (!cleared.all { it }) AppLog.warn("consent.prefs.clear.failed")
         MailAccount.clear(context)
         val files = LogbookExport.deleteFiles(context)

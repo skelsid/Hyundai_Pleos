@@ -19,6 +19,7 @@ import dev.vehiclelog.service.ScreenAccess
 import dev.vehiclelog.service.Settings
 import dev.vehiclelog.service.TireStatus
 import dev.vehiclelog.service.TripService
+import dev.vehiclelog.service.WarningStatus
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -276,6 +277,7 @@ class MainActivity : Activity() {
             val unclassified = store.unclassifiedCount()
             val tire = TireStatus.load(this)
             val departure = TireStatus.loadDeparture(this)
+            val warning = WarningStatus.load(this)
             runOnUiThread {
                 val tireText = tire?.let { "${it.summary} (${TIME.format(Date(it.timeMillis))} 출발 시)" } ?: "아직 점검 전"
                 val screen = when {
@@ -288,7 +290,8 @@ class MainActivity : Activity() {
                 } else {
                     "운행 감지 중 · 신호: ${if (replay) "재생(시연)" else "실차"}\n저장된 운행: ${count}건\n" +
                         "타이어 공기압: $tireText\n" +
-                        "소모품·연료: ${departure ?: "아직 점검 전"}\n종료 화면 자동 표시: $screen"
+                        "소모품·연료: ${departure ?: "아직 점검 전"}\n" +
+                        "계기판 경고등: ${warning?.summary ?: "아직 점검 전"}\n종료 화면 자동 표시: $screen"
                 }
                 updateAccess()
                 replayButton.text = if (replay) "시연 모드 끄기 (실차 신호로)" else "시연 모드 켜기 (가짜 운행 재생)"
