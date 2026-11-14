@@ -19,6 +19,10 @@ object Settings {
     fun screenAccessAsked(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_SCREEN_ACCESS_ASKED, false)
 
+    /** 설정을 처음 설치한 상태로 되돌린다 (신호는 실차, 허용은 다시 묻는다). 지우는 데 성공하면 true. */
+    fun clear(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().commit()
+
     fun setScreenAccessAsked(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_SCREEN_ACCESS_ASKED, true).apply()
     }

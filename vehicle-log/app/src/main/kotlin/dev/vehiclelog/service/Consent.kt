@@ -50,7 +50,8 @@ object Consent {
 
     /**
      * 동의를 거두고 모은 정보를 모두 지운다. 디스크를 쓰므로 메인 스레드에서 부르지 않는다.
-     * 운행 감지 서비스는 부르는 쪽에서 먼저 멈춘다. 앱 설정(시연 모드 등)은 개인정보가 아니라 남긴다.
+     * 운행 감지 서비스는 부르는 쪽에서 먼저 멈춘다. 앱 설정(시연 모드 등)도 처음 상태로 되돌린다:
+     * 남겨 두면 다시 동의하자마자 시연용 가짜 운행이 기록에 쌓인다.
      */
     fun withdrawAndErase(context: Context) {
         // 먼저 동의를 거둬, 아직 끝나지 않은 서비스 작업이 더 기록하지 않게 한다
@@ -58,7 +59,7 @@ object Consent {
         TripStore.get(context).eraseAll()
         val cleared = listOf(
             AdminInfo.clear(context), AdminPin.clear(context), VehicleInfo.clear(context),
-            DepartureStatus.clear(context), WarningStatus.clear(context),
+            DepartureStatus.clear(context), WarningStatus.clear(context), Settings.clear(context),
         )
         if (!cleared.all { it }) AppLog.warn("consent.prefs.clear.failed")
         MailAccount.clear(context)
