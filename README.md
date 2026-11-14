@@ -79,7 +79,7 @@ keyAlias=vehiclelog
 keyPassword=...
 ```
 
-제출용 APK: `apk/1등하면채용해주세요_차량운행기록(VehicleLog)_release.apk`
+제출용 APK: `apk/수상하면채용해주세요_차량운행기록(VehicleLog)_release.apk`
 
 ### 메일 발신 계정
 
@@ -99,7 +99,7 @@ keyPassword=...
 Pleos Connect 에뮬레이터는 기어·주행거리를 바꿀 수 없어 **재생 모드**로 시연한다. 앱 메인 화면 맨 아래 **[시연 모드 켜기]** 버튼으로 켠다(아래 adb 명령으로도 된다). 재생 모드는 `assets/replay_default.json` 의 시나리오(본사 → ○○상사 → 식당. 첫 출발에 연료 14% 안내, 두 번째 출발에 뒤 왼쪽 타이어 저압과 엔진오일 부족 안내)를 시간 순서대로 흘려보낸다.
 
 ```sh
-adb install -r --user 10 apk/1등하면채용해주세요_차량운행기록\(VehicleLog\)_release.apk
+adb install -r --user 10 apk/수상하면채용해주세요_차량운행기록\(VehicleLog\)_release.apk
 # 재생 모드 켜기 (서비스가 다시 시작되며 시나리오가 처음부터 돈다)
 adb shell am start --user 10 -n dev.vehiclelog/.ui.MainActivity --ez replay true
 # 재생 모드 끄기 (실차 신호)
