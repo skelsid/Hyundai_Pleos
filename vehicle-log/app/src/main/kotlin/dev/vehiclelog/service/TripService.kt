@@ -18,6 +18,7 @@ import dev.vehiclelog.signal.VehicleSignals
 import dev.vehiclelog.trip.Gear
 import dev.vehiclelog.trip.DepartureCheck
 import dev.vehiclelog.trip.TireCheck
+import dev.vehiclelog.trip.WarningCheck
 import dev.vehiclelog.trip.TripDetector
 import dev.vehiclelog.trip.SerialQueue
 import dev.vehiclelog.trip.TripEvent
@@ -97,6 +98,7 @@ class TripService : Service() {
                     signals.onTripStarted()
                     runIo { recordStart(point) }
                     checkDeparture(point)
+                    checkWarnings()
                 }
                 TripEvent.ENDED -> runIo { recordEnd(point) }
             }
@@ -122,6 +124,17 @@ class TripService : Service() {
         val id = store.startTrip(point)
         openTripId = id
         AppLog.info("trip.started", "id" to id, "odometerKm" to point.odometerKm)
+    }
+
+    /** 출발할 때 계기판 경고등을 읽어 정비·안전 관련 경고등이 켜져 있으면 음성으로 알린다. */
+    private fun checkWarnings() {
+        signals.readWarnings { active ->
+            if (destroyed) return@readWarnings
+            val labels = active?.let(WarningCheck::important)
+            WarningStatus.save(this, WarningCheck.summary(labels), System.currentTimeMillis())
+            AppLog.info("warning.checked", "received" to (active != null), "active" to active?.size, "important" to labels)
+            labels?.let(WarningCheck::message)?.let(announcer::speak)
+        }
     }
 
     /**

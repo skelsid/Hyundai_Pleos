@@ -44,6 +44,9 @@ interface VehicleSignals {
     /** 엔진오일·브레이크액·변속기오일 수준. 못 받은 것은 null. 한 번만 콜백한다. */
     fun readFluids(callback: (Map<Fluid, FluidLevel?>) -> Unit)
 
+    /** 지금 켜져 있는(점등·점멸) 계기판 경고등의 TelltaleType 이름들. 못 받으면 null. 한 번만 콜백한다. */
+    fun readWarnings(callback: (List<String>?) -> Unit)
+
     /** 새 운행이 시작되면 직전 운행의 도착지 이름을 지운다. */
     fun onTripStarted()
 

@@ -26,6 +26,8 @@ data class ReplayStep(
     val fuelPercent: Int? = null,
     /** 부족한 소모품만 적는다. 적지 않은 것은 정상으로 본다 */
     val fluids: Map<Fluid, FluidLevel> = emptyMap(),
+    /** 켜져 있는 경고등의 TelltaleType 이름들. 없으면 경고등 없음 */
+    val warnings: List<String> = emptyList(),
 )
 
 /**
@@ -73,6 +75,10 @@ class ReplaySignals(private val steps: List<ReplayStep>) : VehicleSignals {
         callback(Fluid.entries.associateWith { listed[it] ?: FluidLevel.NORMAL })
     }
 
+    override fun readWarnings(callback: (List<String>?) -> Unit) {
+        callback(current?.warnings.orEmpty())
+    }
+
     override fun onTripStarted() = Unit
 
     override fun stop() {
@@ -107,6 +113,7 @@ class ReplaySignals(private val steps: List<ReplayStep>) : VehicleSignals {
                             f.optString(fluid.name).takeIf { it.isNotBlank() }?.let { fluid to FluidLevel.valueOf(it) }
                         }.toMap()
                     }.orEmpty(),
+                    warnings = o.optJSONArray("warnings")?.let { w -> List(w.length()) { j -> w.getString(j) } }.orEmpty(),
                 )
             }
         }

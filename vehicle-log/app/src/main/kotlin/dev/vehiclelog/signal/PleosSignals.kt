@@ -15,6 +15,7 @@ import ai.pleos.playground.vehicle.api.model.area.WheelArea
 import ai.pleos.playground.vehicle.constant.area.WheelValue
 import ai.pleos.playground.vehicle.constant.control.OilLevelState
 import ai.pleos.playground.vehicle.constant.control.VehicleGear
+import ai.pleos.playground.vehicle.constant.telltale.TelltaleState
 import ai.pleos.playground.vehicle.listener.GearSelectionListener
 import android.content.Context
 import android.os.Handler
@@ -322,6 +323,29 @@ class PleosSignals(context: Context) : VehicleSignals {
         }
         if (levels.size == Fluid.entries.size) finish()
         handler.postDelayed(finish, READ_TIMEOUT_MS)
+    }
+
+    override fun readWarnings(callback: (List<String>?) -> Unit) {
+        var delivered = false
+        fun finish(active: List<String>?) {
+            if (!delivered) {
+                delivered = true
+                callback(active)
+            }
+        }
+        runCatching {
+            vehicle.getSafety().getTelltalesInfo(
+                { info ->
+                    val active = info.telltales.filter { it.state != TelltaleState.OFF }.map { it.type.name }
+                    handler.post { finish(active) }
+                },
+                { e -> handler.post { AppLog.warn("signal.telltale.error", "error" to e); finish(null) } },
+            )
+        }.onFailure {
+            AppLog.error("signal.telltale.exception", it)
+            finish(null)
+        }
+        handler.postDelayed({ finish(null) }, READ_TIMEOUT_MS)
     }
 
     override fun onTripStarted() {
