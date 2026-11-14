@@ -1,11 +1,15 @@
 package dev.vehiclelog.signal
 
+import dev.vehiclelog.trip.EnergyLevel
+import dev.vehiclelog.trip.Fluid
+import dev.vehiclelog.trip.FluidLevel
 import dev.vehiclelog.trip.Gear
 import dev.vehiclelog.trip.TireReading
 
 /**
  * 운행 시작·종료 순간에 남길 값. 읽지 못한 값은 null.
  * placeName 은 지금 있는 곳(주소 등), destinationName 은 내비에 찍은 목적지다.
+ * tripMeterKm 은 차량 트립 미터(현재 주행 거리). 계기판 누적거리를 못 받을 때 거리를 구하는 데 쓴다.
  */
 data class TripPoint(
     val timeMillis: Long,
@@ -14,6 +18,8 @@ data class TripPoint(
     val longitude: Double?,
     val placeName: String?,
     val destinationName: String? = null,
+    val tripMeterKm: Double? = null,
+    val energy: EnergyLevel? = null,
 ) {
     /** 도착지로 남길 이름. 내비 목적지가 있으면 그걸, 없으면 지금 있는 곳을 쓴다. */
     val endPlaceName: String? get() = destinationName ?: placeName
@@ -34,6 +40,9 @@ interface VehicleSignals {
 
     /** 네 바퀴 공기압과 차량 저압 기준값. 못 받은 바퀴는 null. 한 번만 콜백한다. */
     fun readTires(callback: (TireReading) -> Unit)
+
+    /** 엔진오일·브레이크액·변속기오일 수준. 못 받은 것은 null. 한 번만 콜백한다. */
+    fun readFluids(callback: (Map<Fluid, FluidLevel?>) -> Unit)
 
     /** 새 운행이 시작되면 직전 운행의 도착지 이름을 지운다. */
     fun onTripStarted()

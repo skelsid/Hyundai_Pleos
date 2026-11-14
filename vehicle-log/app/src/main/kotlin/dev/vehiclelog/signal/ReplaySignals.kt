@@ -4,6 +4,9 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import dev.vehiclelog.AppLog
+import dev.vehiclelog.trip.EnergyLevel
+import dev.vehiclelog.trip.Fluid
+import dev.vehiclelog.trip.FluidLevel
 import dev.vehiclelog.trip.Gear
 import dev.vehiclelog.trip.TireReading
 import dev.vehiclelog.trip.Wheel
@@ -19,6 +22,10 @@ data class ReplayStep(
     val placeName: String?,
     /** 앞왼·앞오·뒤왼·뒤오 순서. 없으면 공기압 미수신으로 본다 */
     val tires: List<Double?> = emptyList(),
+    /** 연료 잔량(%). 없으면 미수신 */
+    val fuelPercent: Int? = null,
+    /** 부족한 소모품만 적는다. 적지 않은 것은 정상으로 본다 */
+    val fluids: Map<Fluid, FluidLevel> = emptyMap(),
 )
 
 /**
@@ -46,7 +53,12 @@ class ReplaySignals(private val steps: List<ReplayStep>) : VehicleSignals {
 
     override fun readPoint(callback: (TripPoint) -> Unit) {
         val step = current
-        callback(TripPoint(System.currentTimeMillis(), step?.odometerKm, step?.latitude, step?.longitude, step?.placeName))
+        callback(
+            TripPoint(
+                System.currentTimeMillis(), step?.odometerKm, step?.latitude, step?.longitude, step?.placeName,
+                energy = step?.fuelPercent?.let { EnergyLevel(it, battery = false) },
+            ),
+        )
     }
 
     override fun readTires(callback: (TireReading) -> Unit) {
@@ -54,6 +66,11 @@ class ReplaySignals(private val steps: List<ReplayStep>) : VehicleSignals {
         val pressure = Wheel.entries.withIndex().associate { (i, w) -> w to tires.getOrNull(i) }
         // 재생 시나리오에는 저압 기준값이 없다(상대 비교만 시연)
         callback(TireReading(pressure, Wheel.entries.associateWith { null }))
+    }
+
+    override fun readFluids(callback: (Map<Fluid, FluidLevel?>) -> Unit) {
+        val listed = current?.fluids.orEmpty()
+        callback(Fluid.entries.associateWith { listed[it] ?: FluidLevel.NORMAL })
     }
 
     override fun onTripStarted() = Unit
@@ -83,6 +100,12 @@ class ReplaySignals(private val steps: List<ReplayStep>) : VehicleSignals {
                     placeName = o.optString("place").takeIf { it.isNotBlank() },
                     tires = o.optJSONArray("tires")?.let { t ->
                         List(t.length()) { j -> t.optDouble(j).takeUnless { it.isNaN() } }
+                    }.orEmpty(),
+                    fuelPercent = o.optInt("fuel", -1).takeIf { it in 0..100 },
+                    fluids = o.optJSONObject("fluids")?.let { f ->
+                        Fluid.entries.mapNotNull { fluid ->
+                            f.optString(fluid.name).takeIf { it.isNotBlank() }?.let { fluid to FluidLevel.valueOf(it) }
+                        }.toMap()
                     }.orEmpty(),
                 )
             }

@@ -70,6 +70,9 @@ object LogbookExport {
                 startKm = it.startOdometerKm,
                 endKm = it.endOdometerKm,
                 nonBusiness = it.nonBusiness,
+                tripMeterKm = it.distanceKm.takeIf { _ -> it.distanceFromTripMeter },
+                startEnergy = it.startEnergy,
+                endEnergy = it.endEnergy,
             )
         }
         val dir = File(context.cacheDir, EXPORT_DIR)

@@ -16,6 +16,7 @@ import dev.vehiclelog.signal.ReplaySignals
 import dev.vehiclelog.signal.TripPoint
 import dev.vehiclelog.signal.VehicleSignals
 import dev.vehiclelog.trip.Gear
+import dev.vehiclelog.trip.DepartureCheck
 import dev.vehiclelog.trip.TireCheck
 import dev.vehiclelog.trip.TripDetector
 import dev.vehiclelog.trip.SerialQueue
@@ -95,7 +96,7 @@ class TripService : Service() {
                 TripEvent.STARTED -> {
                     signals.onTripStarted()
                     runIo { recordStart(point) }
-                    checkTires()
+                    checkDeparture(point)
                 }
                 TripEvent.ENDED -> runIo { recordEnd(point) }
             }
@@ -123,14 +124,35 @@ class TripService : Service() {
         AppLog.info("trip.started", "id" to id, "odometerKm" to point.odometerKm)
     }
 
-    /** 출발할 때 네 바퀴 공기압을 비교해 이상이 있으면 음성으로 알린다. */
-    private fun checkTires() {
+    /**
+     * 출발 점검: 네 바퀴 공기압, 엔진오일·브레이크액·변속기오일, 연료(배터리) 잔량.
+     * 이상이 있으면 한 번에 이어서 말한다 (안내가 여러 번 끊겨 나오지 않게).
+     */
+    private fun checkDeparture(point: TripPoint) {
         signals.readTires { reading ->
-            val result = TireCheck.evaluate(reading)
-            val summary = TireCheck.summary(result)
-            TireStatus.save(this, summary, System.currentTimeMillis())
-            AppLog.info("tire.checked", "measured" to result.measured, "low" to result.low, "uneven" to result.uneven)
-            TireCheck.message(result)?.let(announcer::speak)
+            if (destroyed) return@readTires
+            val tires = TireCheck.evaluate(reading)
+            val now = System.currentTimeMillis()
+            TireStatus.save(this, TireCheck.summary(tires), now)
+            AppLog.info("tire.checked", "measured" to tires.measured, "low" to tires.low, "uneven" to tires.uneven)
+            signals.readFluids { fluids ->
+                if (destroyed) return@readFluids
+                val departure = DepartureCheck.evaluate(fluids, point.energy)
+                TireStatus.saveDeparture(this, DepartureCheck.summary(departure))
+                AppLog.info(
+                    "departure.checked",
+                    "fluids" to departure.measuredFluids, "low" to departure.lowFluids, "critical" to departure.criticalFluids,
+                    "energy" to point.energy?.percent,
+                )
+                val tireMessage = TireCheck.message(tires)
+                val departureMessage = DepartureCheck.message(departure)
+                val parts = listOfNotNull(tireMessage, departureMessage)
+                if (parts.isNotEmpty()) {
+                    // 타이어 문구는 "타이어를 확인해 주세요." 로 시작한다. 그것만 없으면 앞에 출발 점검임을 밝힌다
+                    val lead = if (tireMessage == null) "출발 점검 결과입니다. " else ""
+                    announcer.speak(lead + parts.joinToString(" "))
+                }
+            }
         }
     }
 
@@ -142,7 +164,8 @@ class TripService : Service() {
         }
         openTripId = null
         val start = store.trip(id)
-        if (start != null && TripMath.isTrivial(start.startOdometerKm, point.odometerKm, point.timeMillis - start.startTime)) {
+        val km = start?.let { TripMath.tripDistanceKm(it.startOdometerKm, point.odometerKm, it.startTripMeterKm, point.tripMeterKm) }
+        if (start != null && TripMath.isTrivialKm(km, point.timeMillis - start.startTime)) {
             // 주차 자리 옮기기 같은 짧은 움직임은 묻지 않고 버린다
             store.deleteTrip(id)
             AppLog.info("trip.discarded", "id" to id, "durationMs" to (point.timeMillis - start.startTime))

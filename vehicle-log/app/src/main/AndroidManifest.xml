@@ -8,8 +8,10 @@
     <!-- 조회(get)용 퍼미션만 선언. 제어(CONTROL_*)는 App Market 사전 승인 대상이라 넣지 않는다 -->
     <!-- 기어·주행거리 -->
     <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
-    <!-- 타이어 저압 기준값 -->
+    <!-- 타이어 저압 기준값, 엔진오일·브레이크액·변속기오일 수준 -->
     <uses-permission android:name="pleos.car.permission.CAR_SAFETY" />
+    <!-- 연료 잔량·전기차 배터리 잔량 (출발 점검, 운행기록표 비고) -->
+    <uses-permission android:name="pleos.car.permission.CAR_ENERGY" />
     <!-- getTirePressure 가 요구한다. App Market 허용 여부는 미확인 -->
     <uses-permission android:name="pleos.car.permission.PRIVATE_CAR_SAFETY" />
     <uses-permission android:name="pleos.car.permission.FUSED_LOCATION" />

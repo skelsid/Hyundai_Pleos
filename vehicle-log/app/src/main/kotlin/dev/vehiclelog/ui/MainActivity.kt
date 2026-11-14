@@ -241,6 +241,7 @@ class MainActivity : Activity() {
             val count = store.tripCount()
             val unclassified = store.unclassifiedCount()
             val tire = TireStatus.load(this)
+            val departure = TireStatus.loadDeparture(this)
             runOnUiThread {
                 val tireText = tire?.let { "${it.summary} (${TIME.format(Date(it.timeMillis))} 출발 시)" } ?: "아직 점검 전"
                 val screen = when {
@@ -252,7 +253,8 @@ class MainActivity : Activity() {
                     "개인정보 수집·이용에 동의하지 않아 운행을 기록하지 않습니다."
                 } else {
                     "운행 감지 중 · 신호: ${if (replay) "재생(시연)" else "실차"}\n저장된 운행: ${count}건\n" +
-                        "타이어 공기압: $tireText\n종료 화면 자동 표시: $screen"
+                        "타이어 공기압: $tireText\n" +
+                        "소모품·연료: ${departure ?: "아직 점검 전"}\n종료 화면 자동 표시: $screen"
                 }
                 updateAccess()
                 // 다른 앱 위에 표시까지 받으면 더 물을 게 없으므로 버튼을 숨긴다

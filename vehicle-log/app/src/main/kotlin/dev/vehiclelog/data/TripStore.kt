@@ -6,6 +6,8 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import dev.vehiclelog.signal.TripPoint
+import dev.vehiclelog.trip.EnergyLevel
+import dev.vehiclelog.trip.TripMath
 
 /** 저장된 운행 한 건. 끝나지 않은 운행은 endTime 이 null. 분류 전이면 userId·nonBusiness 가 null. */
 data class Trip(
@@ -18,7 +20,17 @@ data class Trip(
     val endPlace: String?,
     val userId: Long?,
     val nonBusiness: Boolean?,
-)
+    val startTripMeterKm: Double? = null,
+    val endTripMeterKm: Double? = null,
+    val startEnergy: EnergyLevel? = null,
+    val endEnergy: EnergyLevel? = null,
+) {
+    /** 주행거리. 계기판 누적거리 차이를 먼저 쓰고, 없으면 트립 미터 차이를 쓴다. */
+    val distanceKm: Double? get() = TripMath.tripDistanceKm(startOdometerKm, endOdometerKm, startTripMeterKm, endTripMeterKm)
+
+    /** 계기판 값이 없어 트립 미터로 구한 거리인가. */
+    val distanceFromTripMeter: Boolean get() = TripMath.distanceKm(startOdometerKm, endOdometerKm) == null && distanceKm != null
+}
 
 /** 운행 종료 때 고를 수 있는 사용자 후보. 삭제하면 active=0 으로 숨긴다 (지난 운행이 참조하므로). */
 data class User(val id: Long, val name: String, val department: String?)
@@ -46,7 +58,8 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
                 start_place TEXT,
                 end_place TEXT,
                 user_id INTEGER REFERENCES users(id),
-                non_business INTEGER
+                non_business INTEGER,
+                $V2_COLUMNS
             )
             """.trimIndent(),
         )
@@ -64,7 +77,10 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // TODO: 스키마를 바꾸면 여기서 이전한다. 지금은 버전 1 뿐이다
+        // 2: 트립 미터·연료(배터리) 잔량 칸 추가. 이전 운행은 빈 값으로 남는다
+        if (oldVersion < 2) {
+            for (column in V2_COLUMNS.split(",")) db.execSQL("ALTER TABLE trips ADD COLUMN ${column.trim()}")
+        }
     }
 
     fun openTrip(): Trip? =
@@ -77,6 +93,9 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
             put("start_odometer", point.odometerKm)
             put("start_lat", point.latitude)
             put("start_lon", point.longitude)
+            put("start_trip_km", point.tripMeterKm)
+            put("start_energy", point.energy?.percent)
+            put("energy_battery", point.energy?.battery?.let { if (it) 1 else 0 })
             // 출발지 이름은 직전 운행의 도착지를 이어 받는다 (같은 곳에서 출발하므로)
             put("start_place", point.placeName ?: lastEndPlace())
         }
@@ -89,6 +108,10 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
             put("end_odometer", point.odometerKm)
             put("end_lat", point.latitude)
             put("end_lon", point.longitude)
+            put("end_trip_km", point.tripMeterKm)
+            put("end_energy", point.energy?.percent)
+            // 출발 때 못 받았으면 도착 때 받은 종류를 남긴다
+            point.energy?.let { put("energy_battery", if (it.battery) 1 else 0) }
             put("end_place", point.endPlaceName)
         }
         writableDatabase.update("trips", values, "id = ?", arrayOf(id.toString()))
@@ -219,17 +242,25 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
             null,
         ).use { if (it.moveToFirst() && !it.isNull(0)) it.getString(0) else null }
 
-    private fun Cursor.toTrip() = Trip(
-        id = getLong(getColumnIndexOrThrow("id")),
-        startTime = getLong(getColumnIndexOrThrow("start_time")),
-        endTime = longOrNull("end_time"),
-        startOdometerKm = doubleOrNull("start_odometer"),
-        endOdometerKm = doubleOrNull("end_odometer"),
-        startPlace = stringOrNull("start_place"),
-        endPlace = stringOrNull("end_place"),
-        userId = longOrNull("user_id"),
-        nonBusiness = longOrNull("non_business")?.let { it != 0L },
-    )
+    private fun Cursor.toTrip(): Trip {
+        val battery = longOrNull("energy_battery")?.let { it != 0L } ?: false
+        fun energy(column: String) = longOrNull(column)?.let { EnergyLevel(it.toInt(), battery) }
+        return Trip(
+            id = getLong(getColumnIndexOrThrow("id")),
+            startTime = getLong(getColumnIndexOrThrow("start_time")),
+            endTime = longOrNull("end_time"),
+            startOdometerKm = doubleOrNull("start_odometer"),
+            endOdometerKm = doubleOrNull("end_odometer"),
+            startPlace = stringOrNull("start_place"),
+            endPlace = stringOrNull("end_place"),
+            userId = longOrNull("user_id"),
+            nonBusiness = longOrNull("non_business")?.let { it != 0L },
+            startTripMeterKm = doubleOrNull("start_trip_km"),
+            endTripMeterKm = doubleOrNull("end_trip_km"),
+            startEnergy = energy("start_energy"),
+            endEnergy = energy("end_energy"),
+        )
+    }
 
     private fun Cursor.longOrNull(column: String): Long? =
         getColumnIndexOrThrow(column).let { if (isNull(it)) null else getLong(it) }
@@ -242,7 +273,8 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
 
     companion object {
         private const val DB_NAME = "vehicle_log.db"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
+        private const val V2_COLUMNS = "start_trip_km REAL, end_trip_km REAL, start_energy INTEGER, end_energy INTEGER, energy_battery INTEGER"
         private const val UNCLASSIFIED = "end_time IS NOT NULL AND non_business IS NULL"
 
         @Volatile

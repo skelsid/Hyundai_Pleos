@@ -47,4 +47,11 @@ class PleosSignalsTest {
         assertEquals("경기 성남시 수정구", point.endPlaceName)
         assertNull(TripPoint(0L, null, null, null, placeName = null).endPlaceName)
     }
+
+    @Test
+    fun test_toFluidLevel_mapsEverySdkState() {
+        for (state in ai.pleos.playground.vehicle.constant.control.OilLevelState.entries) {
+            assertEquals(state.name, PleosSignals.toFluidLevel(state).name)
+        }
+    }
 }

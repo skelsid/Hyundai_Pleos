@@ -1,5 +1,6 @@
 package dev.vehiclelog.export
 
+import dev.vehiclelog.trip.EnergyLevel
 import dev.vehiclelog.trip.TripMath
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
@@ -31,6 +32,10 @@ data class LogRow(
     val endKm: Double?,
     /** null 이면 아직 분류하지 않은 운행 */
     val nonBusiness: Boolean?,
+    /** 계기판 값이 없을 때 트립 미터로 구한 거리. 계기판 칸·합계 수식에는 넣지 않고 비고에만 적는다 */
+    val tripMeterKm: Double? = null,
+    val startEnergy: EnergyLevel? = null,
+    val endEnergy: EnergyLevel? = null,
 )
 
 /**
@@ -127,8 +132,25 @@ object LogbookXlsx {
     private fun note(row: LogRow): String? =
         listOfNotNull(
             "미분류".takeIf { row.nonBusiness == null },
-            "계기판 값 미수신".takeIf { row.startKm == null || row.endKm == null },
+            when {
+                row.startKm != null && row.endKm != null -> null
+                row.tripMeterKm != null -> "계기판 값 미수신(트립 미터 ${plainKm(row.tripMeterKm)}km)"
+                else -> "계기판 값 미수신"
+            },
+            energyNote(row.startEnergy, row.endEnergy),
         ).joinToString(", ").ifEmpty { null }
+
+    /** 예: "연료 72→65%", 한쪽만 있으면 "연료 출발 72%". */
+    fun energyNote(start: EnergyLevel?, end: EnergyLevel?): String? {
+        val label = (start ?: end)?.label ?: return null
+        return when {
+            start != null && end != null -> "$label ${start.percent}→${end.percent}%"
+            start != null -> "$label 출발 ${start.percent}%"
+            else -> "$label 도착 ${end!!.percent}%"
+        }
+    }
+
+    private fun plainKm(km: Double): String = String.format(java.util.Locale.ROOT, "%.1f", km)
 
     // ── 셀 편집 ────────────────────────────────────────────────
 

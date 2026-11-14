@@ -2,11 +2,12 @@ package dev.vehiclelog.service
 
 import android.content.Context
 
-/** 마지막 타이어 점검 결과(화면 표시용 한 줄과 시각). */
+/** 마지막 출발 점검 결과(타이어 공기압, 소모품·연료). 화면 표시용 한 줄과 시각. */
 object TireStatus {
     private const val PREFS = "tire_status"
     private const val KEY_SUMMARY = "summary"
     private const val KEY_TIME = "time"
+    private const val KEY_DEPARTURE = "departure_summary"
 
     data class Last(val summary: String, val timeMillis: Long)
 
@@ -16,6 +17,14 @@ object TireStatus {
             .putLong(KEY_TIME, timeMillis)
             .apply()
     }
+
+    /** 소모품·연료 점검 한 줄. 타이어와 같은 출발 시각에 남긴다. */
+    fun saveDeparture(context: Context, summary: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_DEPARTURE, summary).apply()
+    }
+
+    fun loadDeparture(context: Context): String? =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY_DEPARTURE, null)
 
     fun load(context: Context): Last? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

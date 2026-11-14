@@ -133,4 +133,13 @@ class LogbookXlsxTest {
         assertFalse(parts.containsKey("xl/calcChain.xml"))
         assertTrue(parts.getValue("xl/workbook.xml").contains("fullCalcOnLoad=\"1\""))
     }
+
+    @Test
+    fun test_energyNote_formats() {
+        val fuel = { p: Int -> dev.vehiclelog.trip.EnergyLevel(p, battery = false) }
+        org.junit.Assert.assertEquals("연료 72→65%", LogbookXlsx.energyNote(fuel(72), fuel(65)))
+        org.junit.Assert.assertEquals("연료 출발 72%", LogbookXlsx.energyNote(fuel(72), null))
+        org.junit.Assert.assertEquals("배터리 도착 40%", LogbookXlsx.energyNote(null, dev.vehiclelog.trip.EnergyLevel(40, battery = true)))
+        org.junit.Assert.assertNull(LogbookXlsx.energyNote(null, null))
+    }
 }

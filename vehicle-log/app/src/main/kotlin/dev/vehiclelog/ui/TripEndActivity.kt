@@ -17,7 +17,6 @@ import dev.vehiclelog.data.TripStore
 import dev.vehiclelog.data.User
 import dev.vehiclelog.service.TripService
 import dev.vehiclelog.trip.TripText
-import dev.vehiclelog.trip.TripMath
 import java.util.concurrent.Executors
 
 /**
@@ -159,7 +158,7 @@ class TripEndActivity : Activity() {
             else -> "운행이 끝났습니다"
         }
         root.addView(Ui.header(this, Ui.title(this, title)))
-        val km = TripMath.distanceKm(target.startOdometerKm, target.endOdometerKm)
+        val km = target.distanceKm
         root.addView(
             Ui.body(
                 this,

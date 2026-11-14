@@ -84,7 +84,7 @@ class MonthlyActivity : Activity() {
     private fun render(trips: List<Trip>, names: Map<Long, String>) {
         if (isFinishing) return
         monthLabel.text = String.format(Locale.KOREA, "%d년 %d월 운행기록", year, month)
-        val distances = trips.associate { it.id to TripMath.distanceKm(it.startOdometerKm, it.endOdometerKm) }
+        val distances = trips.associate { it.id to it.distanceKm }
         val total = TripMath.monthSummary(trips.map { MonthTrip(distances[it.id], it.nonBusiness) })
         summary.text = buildString {
             append("운행 ${total.tripCount}건 · 주행 ${TripText.distance(total.totalKm)} · 업무용 ${TripText.distance(total.businessKm)}\n")

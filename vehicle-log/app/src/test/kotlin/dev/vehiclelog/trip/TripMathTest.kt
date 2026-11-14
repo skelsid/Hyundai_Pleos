@@ -59,4 +59,27 @@ class TripMathTest {
         // 계기판이 줄어든 경우(값 오류)는 거리를 모르는 것으로 본다
         assertEquals(false, TripMath.isTrivial(25000.0, 24000.0, 120_000L))
     }
+
+    @Test
+    fun test_tripDistanceKm_prefersOdometer() {
+        assertEquals(42.0, TripMath.tripDistanceKm(25000.0, 25042.0, 1.0, 3.0)!!, delta)
+    }
+
+    @Test
+    fun test_tripDistanceKm_noOdometer_usesTripMeter() {
+        assertEquals(12.5, TripMath.tripDistanceKm(null, null, 3.0, 15.5)!!, delta)
+    }
+
+    @Test
+    fun test_tripDistanceKm_tripMeterReset_returnsNull() {
+        // 시동을 다시 걸어 트립 미터가 0 으로 돌아가면 거리를 모른다
+        assertNull(TripMath.tripDistanceKm(null, null, 15.0, 2.0))
+    }
+
+    @Test
+    fun test_isTrivialKm_sameRuleAsOdometer() {
+        assertEquals(true, TripMath.isTrivialKm(0.05, 60_000L))
+        assertEquals(false, TripMath.isTrivialKm(5.0, 60_000L))
+        assertEquals(true, TripMath.isTrivialKm(null, 30_000L))
+    }
 }

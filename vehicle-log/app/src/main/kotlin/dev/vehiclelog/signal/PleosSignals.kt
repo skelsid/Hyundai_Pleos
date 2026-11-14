@@ -13,12 +13,16 @@ import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import ai.pleos.playground.vehicle.Vehicle
 import ai.pleos.playground.vehicle.api.model.area.WheelArea
 import ai.pleos.playground.vehicle.constant.area.WheelValue
+import ai.pleos.playground.vehicle.constant.control.OilLevelState
 import ai.pleos.playground.vehicle.constant.control.VehicleGear
 import ai.pleos.playground.vehicle.listener.GearSelectionListener
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import dev.vehiclelog.AppLog
+import dev.vehiclelog.trip.EnergyLevel
+import dev.vehiclelog.trip.Fluid
+import dev.vehiclelog.trip.FluidLevel
 import dev.vehiclelog.trip.Gear
 import dev.vehiclelog.trip.TireReading
 import dev.vehiclelog.trip.Wheel
@@ -194,6 +198,14 @@ class PleosSignals(context: Context) : VehicleSignals {
                 }
             })
         }.onFailure { AppLog.error("signal.location.exception", it); reading.location(null, null) }
+        // 계기판 누적거리를 못 받을 때 거리를 구하려고 트립 미터도 같이 남긴다 (에뮬레이터는 미지원)
+        runCatching {
+            vehicle.getOdometer().getTripCurrentDrivingDistance(
+                { km -> handler.post { reading.tripMeter(km?.toDouble()?.takeIf { it >= 0.0 }) } },
+                { e -> handler.post { AppLog.warn("signal.tripmeter.error", "error" to e); reading.tripMeter(null) } },
+            )
+        }.onFailure { AppLog.error("signal.tripmeter.exception", it); reading.tripMeter(null) }
+        readEnergy(reading::energy)
         // 내비 목적지 없이 다닌 운행도 장소가 남도록 현재 위치의 주소를 내비에 묻는다. 답은 onCurrentLocationInfo 로 온다
         if (naviReady) {
             waitingAddress += reading
@@ -253,6 +265,65 @@ class PleosSignals(context: Context) : VehicleSignals {
         handler.postDelayed(finish, READ_TIMEOUT_MS)
     }
 
+    /** 연료 잔량(%)을 묻고, 없으면(전기차 등) 배터리 잔량을 묻는다. 한 번만 콜백한다. */
+    private fun readEnergy(callback: (EnergyLevel?) -> Unit) {
+        fun battery() {
+            runCatching {
+                vehicle.getEvBattery().getEvBatteryStateOfCharge(
+                    { v -> handler.post { callback(v?.takeIf { it in 0..100 }?.let { EnergyLevel(it, battery = true) }) } },
+                    { e -> handler.post { AppLog.warn("signal.battery.error", "error" to e); callback(null) } },
+                )
+            }.onFailure { AppLog.error("signal.battery.exception", it); callback(null) }
+        }
+        runCatching {
+            vehicle.getFuel().getFuelPercent(
+                { v ->
+                    handler.post {
+                        val level = v?.takeIf { it in 0..100 }
+                        if (level != null) callback(EnergyLevel(level, battery = false)) else battery()
+                    }
+                },
+                { e -> handler.post { AppLog.warn("signal.fuel.error", "error" to e); battery() } },
+            )
+        }.onFailure { AppLog.error("signal.fuel.exception", it); battery() }
+    }
+
+    override fun readFluids(callback: (Map<Fluid, FluidLevel?>) -> Unit) {
+        val levels = mutableMapOf<Fluid, FluidLevel?>()
+        var delivered = false
+        val finish = {
+            if (!delivered) {
+                delivered = true
+                callback(Fluid.entries.associateWith { levels[it] })
+            }
+        }
+        fun put(fluid: Fluid, state: OilLevelState?) {
+            levels[fluid] = state?.let(::toFluidLevel)
+            if (levels.size == Fluid.entries.size) finish()
+        }
+        val safety = runCatching { vehicle.getSafety() }.getOrElse {
+            AppLog.error("signal.fluid.exception", it)
+            finish()
+            return
+        }
+        for (fluid in Fluid.entries) {
+            runCatching {
+                val onOk: (OilLevelState?) -> Unit = { v -> handler.post { put(fluid, v) } }
+                val onErr: (Exception) -> Unit = { e -> handler.post { AppLog.warn("signal.fluid.error", "fluid" to fluid, "error" to e); put(fluid, null) } }
+                when (fluid) {
+                    Fluid.ENGINE_OIL -> safety.getEngineOilLevelState(onOk, onErr)
+                    Fluid.BRAKE_FLUID -> safety.getBrakeFluidLevelState(onOk, onErr)
+                    Fluid.TRANSMISSION_OIL -> safety.getTransmissionOilLevelState(onOk, onErr)
+                }
+            }.onFailure {
+                AppLog.error("signal.fluid.exception", it, "fluid" to fluid)
+                levels.putIfAbsent(fluid, null)
+            }
+        }
+        if (levels.size == Fluid.entries.size) finish()
+        handler.postDelayed(finish, READ_TIMEOUT_MS)
+    }
+
     override fun onTripStarted() {
         // 출발 전에 찍은 목적지는 남기고, 안내 없이 출발하면 지난 운행의 목적지를 지운다
         if (!routing) destination = null
@@ -275,6 +346,10 @@ class PleosSignals(context: Context) : VehicleSignals {
         private var odometerDone = false
         private var locationDone = false
         private var addressDone = false
+        private var tripMeterDone = false
+        private var energyDone = false
+        private var tripMeterKm: Double? = null
+        private var energy: EnergyLevel? = null
         private var delivered = false
         private var address: String? = null
         private var odometerKm: Double? = null
@@ -301,8 +376,20 @@ class PleosSignals(context: Context) : VehicleSignals {
             finishIfDone()
         }
 
+        fun tripMeter(km: Double?) {
+            tripMeterKm = km
+            tripMeterDone = true
+            finishIfDone()
+        }
+
+        fun energy(level: EnergyLevel?) {
+            energy = level
+            energyDone = true
+            finishIfDone()
+        }
+
         private fun finishIfDone() {
-            if (odometerDone && locationDone && addressDone) finish()
+            if (odometerDone && locationDone && addressDone && tripMeterDone && energyDone) finish()
         }
 
         fun finish() {
@@ -310,7 +397,7 @@ class PleosSignals(context: Context) : VehicleSignals {
             delivered = true
             waitingAddress -= this
             // 도착지는 내비 목적지(상호 등)가 있으면 그걸, 없으면 주소를 쓴다 (TripPoint.endPlaceName)
-            callback(TripPoint(timeMillis, odometerKm, latitude, longitude, address, destination))
+            callback(TripPoint(timeMillis, odometerKm, latitude, longitude, address, destination, tripMeterKm, energy))
         }
     }
 
@@ -329,6 +416,14 @@ class PleosSignals(context: Context) : VehicleSignals {
         /** 내비가 준 목적지 이름. 상호가 비어 있으면 주소를 쓰고, 둘 다 비면 null. */
         fun destinationName(name: String?, address: String?): String? =
             name?.trim()?.takeIf { it.isNotEmpty() } ?: address?.trim()?.takeIf { it.isNotEmpty() }
+
+        fun toFluidLevel(state: OilLevelState): FluidLevel = when (state) {
+            OilLevelState.NORMAL -> FluidLevel.NORMAL
+            OilLevelState.HIGH -> FluidLevel.HIGH
+            OilLevelState.LOW -> FluidLevel.LOW
+            OilLevelState.CRITICALLY_LOW -> FluidLevel.CRITICALLY_LOW
+            OilLevelState.ERROR -> FluidLevel.ERROR
+        }
 
         fun toWheelValue(wheel: Wheel): WheelValue = when (wheel) {
             Wheel.LEFT_FRONT -> WheelValue.LEFT_FRONT
