@@ -55,6 +55,12 @@ class SendActivity : Activity() {
         setContentView(Ui.screen(this, root))
     }
 
+    override fun onStart() {
+        super.onStart()
+        // 관리 화면이다. 앱을 떠났다 돌아와 잠겼으면 닫는다
+        AdminSession.requireUnlocked(this)
+    }
+
     override fun onResume() {
         super.onResume()
         val admin = AdminInfo.load(this)

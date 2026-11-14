@@ -1,6 +1,8 @@
 package dev.vehiclelog.ui
 
 import android.app.Activity
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.widget.LinearLayout
 import android.widget.Toast
@@ -12,6 +14,7 @@ import java.util.concurrent.Executors
 /**
  * 사용자 후보 관리. 운행 종료 화면에서 이 목록 중에 고른다.
  * 입력 칸이 있으므로 주행 중에는 시스템이 막는다 (distractionOptimized 아님).
+ * 메인 화면의 관리자 메뉴로 들어오면 관리자 비밀번호가 필요하다. 운행 종료 화면의 [사용자 추가]로 들어오면 필요 없다.
  */
 class UsersActivity : Activity() {
 
@@ -85,8 +88,22 @@ class UsersActivity : Activity() {
         }.show()
     }
 
+    override fun onStart() {
+        super.onStart()
+        // 관리자 메뉴로 들어왔는데 앱을 떠났다 돌아와 잠겼으면 닫는다
+        if (intent.getBooleanExtra(EXTRA_ADMIN_MENU, false)) AdminSession.requireUnlocked(this)
+    }
+
     override fun onDestroy() {
         io.shutdown()
         super.onDestroy()
+    }
+
+    companion object {
+        private const val EXTRA_ADMIN_MENU = "admin_menu"
+
+        /** 메인 화면의 관리자 메뉴에서 여는 경우. */
+        fun adminIntent(context: Context): Intent =
+            Intent(context, UsersActivity::class.java).putExtra(EXTRA_ADMIN_MENU, true)
     }
 }

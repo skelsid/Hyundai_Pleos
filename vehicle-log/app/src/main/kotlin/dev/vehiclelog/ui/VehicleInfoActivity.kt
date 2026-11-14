@@ -12,6 +12,12 @@ import dev.vehiclelog.data.VehicleInfo
  */
 class VehicleInfoActivity : Activity() {
 
+    override fun onStart() {
+        super.onStart()
+        // 관리 화면이다. 앱을 떠났다 돌아와 잠겼으면 닫는다
+        AdminSession.requireUnlocked(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val info = VehicleInfo.load(this)

@@ -4,6 +4,7 @@ import android.app.NotificationManager
 import android.content.Context
 import dev.vehiclelog.AppLog
 import dev.vehiclelog.data.AdminInfo
+import dev.vehiclelog.data.AdminPin
 import dev.vehiclelog.data.MailAccount
 import dev.vehiclelog.data.TripStore
 import dev.vehiclelog.data.VehicleInfo
@@ -55,7 +56,7 @@ object Consent {
         // 먼저 동의를 거둬, 아직 끝나지 않은 서비스 작업이 더 기록하지 않게 한다
         if (!prefs(context).edit().clear().commit()) AppLog.warn("consent.clear.failed")
         TripStore.get(context).eraseAll()
-        val cleared = listOf(AdminInfo.clear(context), VehicleInfo.clear(context), TireStatus.clear(context))
+        val cleared = listOf(AdminInfo.clear(context), AdminPin.clear(context), VehicleInfo.clear(context), TireStatus.clear(context))
         if (!cleared.all { it }) AppLog.warn("consent.prefs.clear.failed")
         MailAccount.clear(context)
         val files = LogbookExport.deleteFiles(context)
