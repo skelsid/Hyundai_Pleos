@@ -63,7 +63,11 @@ class CarIdentity(context: Context) {
         private const val ITEMS = 2
         private const val READ_TIMEOUT_MS = 3_000L
 
-        /** 빈 값은 못 받은 것으로 본다. */
-        fun clean(value: String?): String? = value?.trim()?.takeIf { it.isNotEmpty() }
+        /** 차량이 값이 없을 때 돌려주는 자리 채움 값 (에뮬레이터 v2.1.0 실측: 따옴표째로 "invalid") */
+        private const val NO_VALUE = "invalid"
+
+        /** 앞뒤 공백·따옴표를 떼고, 빈 값과 자리 채움 값은 못 받은 것으로 본다. */
+        fun clean(value: String?): String? = value?.trim()?.trim('"')?.trim()
+            ?.takeIf { it.isNotEmpty() && !it.equals(NO_VALUE, ignoreCase = true) }
     }
 }
