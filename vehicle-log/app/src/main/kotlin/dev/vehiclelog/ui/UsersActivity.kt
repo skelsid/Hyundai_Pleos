@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import dev.vehiclelog.AppLog
 import dev.vehiclelog.data.TripStore
@@ -15,16 +16,19 @@ import java.util.concurrent.Executors
  * 사용자 후보 관리. 운행 종료 화면에서 이 목록 중에 고른다.
  * 입력 칸이 있으므로 주행 중에는 시스템이 막는다 (distractionOptimized 아님).
  * 메인 화면의 관리자 메뉴로 들어오면 관리자 비밀번호가 필요하다. 운행 종료 화면의 [사용자 추가]로 들어오면 필요 없다.
+ * 후보에서 빼는 것은 관리자 메뉴가 열려 있을 때만 된다 — 운전자는 자기 이름을 추가만 한다.
  */
 class UsersActivity : Activity() {
 
     private val io = Executors.newSingleThreadExecutor()
     private lateinit var list: LinearLayout
+    private lateinit var title: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val root = Ui.column(this)
-        root.addView(Ui.header(this, Ui.title(this, "사용자 관리")))
+        title = Ui.title(this, "")
+        root.addView(Ui.header(this, title))
         val name = Ui.input(this, "이름")
         val department = Ui.input(this, "부서 (선택)")
         root.addView(name)
@@ -57,7 +61,6 @@ class UsersActivity : Activity() {
         list = Ui.column(this).apply { setPadding(0, 0, 0, 0) }
         root.addView(list)
         setContentView(Ui.screen(this, root))
-        reload()
     }
 
     private fun reload() {
@@ -73,8 +76,10 @@ class UsersActivity : Activity() {
         if (isFinishing) return
         list.removeAllViews()
         if (users.isEmpty()) list.addView(Ui.body(this, "등록된 사용자가 없습니다."))
+        // 후보에서 빼는 것은 관리자만 한다. 운행 종료 화면의 [사용자 추가]로 들어온 운전자에게는 버튼을 두지 않는다
+        val canRemove = AdminSession.unlocked
         for (user in users) {
-            val remove = Ui.button(this, "삭제", medium = true) { confirmRemove(user, user.label) }
+            val remove = if (canRemove) Ui.button(this, "삭제", medium = true) { confirmRemove(user, user.label) } else null
             list.addView(Ui.listItem(this, user.name, user.department, suffix = remove))
         }
     }
@@ -99,6 +104,9 @@ class UsersActivity : Activity() {
         super.onStart()
         // 관리자 메뉴로 들어왔는데 앱을 떠났다 돌아와 잠겼으면 닫는다
         if (intent.getBooleanExtra(EXTRA_ADMIN_MENU, false)) AdminSession.requireUnlocked(this)
+        // 앱을 떠났다 돌아오면 관리자 메뉴가 잠기므로, 화면이 보일 때마다 제목과 [삭제] 버튼을 지금 상태로 다시 그린다
+        title.text = if (AdminSession.unlocked) "사용자 관리" else "사용자 추가"
+        reload()
     }
 
     override fun onDestroy() {
