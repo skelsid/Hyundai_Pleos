@@ -3,7 +3,7 @@ package dev.vehiclelog.data
 import android.content.Context
 
 /**
- * 운행기록표 머리에 들어가는 차량 정보. 차대번호는 SDK 에 조회 API 가 없어 직접 입력한다.
+ * 운행기록표 머리에 들어가는 차량 정보. 차량번호·차대번호는 차량이 알려 주면 채우고([dev.vehiclelog.signal.CarIdentity]), 나머지는 직접 입력한다.
  * 빈 칸은 빈 문자열로 둔다.
  */
 data class VehicleInfo(

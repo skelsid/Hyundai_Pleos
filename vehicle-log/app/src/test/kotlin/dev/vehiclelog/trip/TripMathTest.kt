@@ -42,22 +42,22 @@ class TripMathTest {
     }
 
     @Test
-    fun test_isTrivial_parkingShuffle_true() {
+    fun test_isTrivialKm_parkingShuffle_true() {
         // 거리 0, 1분: 주차 자리 옮기기
-        assertEquals(true, TripMath.isTrivial(25000.0, 25000.0, 60_000L))
+        assertEquals(true, TripMath.isTrivialKm(TripMath.distanceKm(25000.0, 25000.0), 60_000L))
         // 거리를 모르고 30초
-        assertEquals(true, TripMath.isTrivial(null, null, 30_000L))
+        assertEquals(true, TripMath.isTrivialKm(TripMath.distanceKm(null, null), 30_000L))
     }
 
     @Test
-    fun test_isTrivial_realTrips_false() {
-        assertEquals(false, TripMath.isTrivial(25000.0, 25042.3, 8_000L))
+    fun test_isTrivialKm_realTrips_false() {
+        assertEquals(false, TripMath.isTrivialKm(TripMath.distanceKm(25000.0, 25042.3), 8_000L))
         // 계기판 눈금이 거칠어 거리가 0 으로 보여도 3분 넘게 달렸으면 남긴다
-        assertEquals(false, TripMath.isTrivial(25000.0, 25000.0, 180_000L))
+        assertEquals(false, TripMath.isTrivialKm(TripMath.distanceKm(25000.0, 25000.0), 180_000L))
         // 거리를 모르면 1분부터 남긴다
-        assertEquals(false, TripMath.isTrivial(null, 25000.0, 60_000L))
+        assertEquals(false, TripMath.isTrivialKm(TripMath.distanceKm(null, 25000.0), 60_000L))
         // 계기판이 줄어든 경우(값 오류)는 거리를 모르는 것으로 본다
-        assertEquals(false, TripMath.isTrivial(25000.0, 24000.0, 120_000L))
+        assertEquals(false, TripMath.isTrivialKm(TripMath.distanceKm(25000.0, 24000.0), 120_000L))
     }
 
     @Test

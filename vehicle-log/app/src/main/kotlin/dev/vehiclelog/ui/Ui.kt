@@ -276,7 +276,7 @@ internal object Ui {
                 imageTintList = ColorStateList.valueOf(colors.textPrimary)
                 contentDescription = "뒤로"
                 background = StateListDrawable().apply {
-                    addState(intArrayOf(android.R.attr.state_pressed), rounded(activity, colors.basicPressed, activity.px(T.BUTTON_MEDIUM_RADIUS)))
+                    addState(intArrayOf(android.R.attr.state_pressed), rounded(colors.basicPressed, activity.px(T.BUTTON_MEDIUM_RADIUS)))
                 }
                 stateListAnimator = pressShrink()
                 @Suppress("DEPRECATION")
@@ -314,7 +314,7 @@ internal object Ui {
             override fun getOutline(view: View, outline: Outline) = outline.setRoundRect(0, 0, view.width, view.height, radius)
         }
         clipToOutline = true
-        foreground = rounded(context, Color.TRANSPARENT, radius.roundToInt()).apply {
+        foreground = rounded(Color.TRANSPARENT, radius.roundToInt()).apply {
             setStroke(context.px(T.LINE), colors.dividerSecondary)
         }
     }
@@ -347,10 +347,10 @@ internal object Ui {
             addState(
                 intArrayOf(-android.R.attr.state_enabled),
                 // Disabled: 바탕 + divider/secondary 안쪽 테두리 (.fig 에서 테두리 두께는 2 고정)
-                insideStroke(context, disabled, colors.dividerSecondary, context.px(DISABLED_BORDER_DP), radius),
+                insideStroke(disabled, colors.dividerSecondary, context.px(DISABLED_BORDER_DP), radius),
             )
-            addState(intArrayOf(android.R.attr.state_pressed), rounded(context, pressed, radius))
-            addState(intArrayOf(), rounded(context, enabled, radius))
+            addState(intArrayOf(android.R.attr.state_pressed), rounded(pressed, radius))
+            addState(intArrayOf(), rounded(enabled, radius))
         }
         return pleosButton(context, text, size, textColors, background, onClick)
     }
@@ -371,12 +371,12 @@ internal object Ui {
             intArrayOf(colors.textQuaternary, colors.textPrimary, colors.textSecondary),
         )
         val background = StateListDrawable().apply {
-            addState(intArrayOf(-enabled, selected), insideStroke(context, colors.switchDisabled, colors.dividerSecondary, border, radius))
-            addState(intArrayOf(-enabled), insideStroke(context, colors.basicDisabled, colors.dividerSecondary, border, radius))
+            addState(intArrayOf(-enabled, selected), insideStroke(colors.switchDisabled, colors.dividerSecondary, border, radius))
+            addState(intArrayOf(-enabled), insideStroke(colors.basicDisabled, colors.dividerSecondary, border, radius))
             addState(intArrayOf(selected, pressed), raised(context, colors.switchPressed, radius))
             addState(intArrayOf(selected), raised(context, colors.switchEnabled, radius))
-            addState(intArrayOf(pressed), rounded(context, colors.basicPressed, radius))
-            addState(intArrayOf(), rounded(context, colors.basicEnabled, radius))
+            addState(intArrayOf(pressed), rounded(colors.basicPressed, radius))
+            addState(intArrayOf(), rounded(colors.basicEnabled, radius))
         }
         return pleosButton(context, text, TOGGLE, textColors, background, onClick)
     }
@@ -399,7 +399,7 @@ internal object Ui {
                     ),
                 ),
             ),
-            rounded(context, fill, radiusPx),
+            rounded(fill, radiusPx),
         ),
     )
 
@@ -451,7 +451,7 @@ internal object Ui {
             setPadding(padH, padV, padH, padV)
             if (onClick != null) {
                 background = StateListDrawable().apply {
-                    addState(intArrayOf(android.R.attr.state_pressed), rounded(context, colors.itemPressed, context.px(T.ITEM_RADIUS)))
+                    addState(intArrayOf(android.R.attr.state_pressed), rounded(colors.itemPressed, context.px(T.ITEM_RADIUS)))
                     addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))
                 }
                 stateListAnimator = pressShrink()
@@ -512,13 +512,13 @@ internal object Ui {
                 // 주행 중 키보드가 막히면 Read Only 모양으로 둔다 (.fig ivi_text_field State=Read Only)
                 addState(
                     intArrayOf(-android.R.attr.state_enabled),
-                    insideStroke(context, colors.fieldReadOnly, colors.dividerSecondary, context.px(T.FIELD_BORDER), radius),
+                    insideStroke(colors.fieldReadOnly, colors.dividerSecondary, context.px(T.FIELD_BORDER), radius),
                 )
                 addState(
                     intArrayOf(android.R.attr.state_focused),
-                    insideStroke(context, colors.fieldBackground, colors.fieldFocused, context.px(T.FIELD_FOCUSED_BORDER), radius),
+                    insideStroke(colors.fieldBackground, colors.fieldFocused, context.px(T.FIELD_FOCUSED_BORDER), radius),
                 )
-                addState(intArrayOf(), insideStroke(context, colors.fieldBackground, colors.dividerSecondary, context.px(T.FIELD_BORDER), radius))
+                addState(intArrayOf(), insideStroke(colors.fieldBackground, colors.dividerSecondary, context.px(T.FIELD_BORDER), radius))
             }
             // 배경 drawable 이 뷰 패딩을 바꿀 수 있어 배경 뒤에 준다
             val padH = context.px(T.FIELD_PADDING_H)
@@ -578,7 +578,7 @@ internal object Ui {
         val content = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            background = insideStroke(activity, colors.popupBackground, colors.dividerPrimary, activity.px(T.POPUP_BORDER), activity.px(T.POPUP_RADIUS))
+            background = insideStroke(colors.popupBackground, colors.dividerPrimary, activity.px(T.POPUP_BORDER), activity.px(T.POPUP_RADIUS))
             val pad = activity.px(T.POPUP_PADDING)
             setPadding(pad, pad, pad, pad)
             val header = LinearLayout(activity).apply {
@@ -642,7 +642,7 @@ internal object Ui {
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
         val frame = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            background = insideStroke(activity, colors.popupBackground, colors.dividerPrimary, activity.px(T.POPUP_BORDER), activity.px(T.POPUP_RADIUS))
+            background = insideStroke(colors.popupBackground, colors.dividerPrimary, activity.px(T.POPUP_BORDER), activity.px(T.POPUP_RADIUS))
             val pad = activity.px(T.POPUP_PADDING)
             setPadding(pad, pad, pad, pad)
             addView(
@@ -675,7 +675,7 @@ internal object Ui {
         return dialog
     }
 
-    private fun rounded(context: Context, color: Int, radiusPx: Int) = GradientDrawable().apply {
+    private fun rounded(color: Int, radiusPx: Int) = GradientDrawable().apply {
         setColor(color)
         cornerRadius = radiusPx.toFloat()
     }
@@ -685,10 +685,10 @@ internal object Ui {
      * GradientDrawable 하나에 선을 주면 선 두께 반만큼 바탕을 들여 그려서, 반투명 선 아래 바깥 1px 에 바탕이 없다.
      * 그래서 바탕과 선을 두 층으로 나눈다. 선 층은 반 두께만큼 들인 사각형에 그려지므로 반지름도 그만큼 줄여 바깥 곡선을 맞춘다.
      */
-    private fun insideStroke(context: Context, fill: Int, stroke: Int, widthPx: Int, radiusPx: Int) = LayerDrawable(
+    private fun insideStroke(fill: Int, stroke: Int, widthPx: Int, radiusPx: Int) = LayerDrawable(
         arrayOf(
-            rounded(context, fill, radiusPx),
-            rounded(context, Color.TRANSPARENT, (radiusPx - widthPx / 2).coerceAtLeast(0)).apply { setStroke(widthPx, stroke) },
+            rounded(fill, radiusPx),
+            rounded(Color.TRANSPARENT, (radiusPx - widthPx / 2).coerceAtLeast(0)).apply { setStroke(widthPx, stroke) },
         ),
     )
 

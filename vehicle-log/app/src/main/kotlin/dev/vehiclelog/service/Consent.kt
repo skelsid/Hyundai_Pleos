@@ -24,7 +24,7 @@ object Consent {
 
     const val TITLE = "개인정보 수집·이용 동의"
 
-    // 수집 항목은 실제로 저장하는 것과 맞춘다: TripStore(운행·사용자), AdminInfo, MailAccount, VehicleInfo, TireStatus, WarningStatus
+    // 수집 항목은 실제로 저장하는 것과 맞춘다: TripStore(운행·사용자), AdminInfo, MailAccount, VehicleInfo, DepartureStatus, WarningStatus
     val NOTICE = """
         차량운행기록은 업무용 차량 운행기록표를 만들려고 아래 정보를 이 차량 안에만 저장합니다.
 
@@ -58,7 +58,7 @@ object Consent {
         TripStore.get(context).eraseAll()
         val cleared = listOf(
             AdminInfo.clear(context), AdminPin.clear(context), VehicleInfo.clear(context),
-            TireStatus.clear(context), WarningStatus.clear(context),
+            DepartureStatus.clear(context), WarningStatus.clear(context),
         )
         if (!cleared.all { it }) AppLog.warn("consent.prefs.clear.failed")
         MailAccount.clear(context)

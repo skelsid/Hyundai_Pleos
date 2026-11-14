@@ -25,11 +25,8 @@ object TripMath {
      * 이런 것까지 종료 화면을 띄우면 운전자가 귀찮아서 끄게 되므로 기록하지 않고 버린다.
      * 기준은 가정값이다: 거리를 알면 [TRIVIAL_KM] 미만이면서 [TRIVIAL_WITH_DISTANCE_MS] 미만,
      * 거리를 모르면 [TRIVIAL_WITHOUT_DISTANCE_MS] 미만. 계기판 눈금이 1km 단위여도 몇 분 넘게 달린 운행은 남는다.
+     * km 는 [tripDistanceKm] 로 구한 거리 (트립 미터로 구한 거리 포함), 못 구했으면 null.
      */
-    fun isTrivial(startOdometerKm: Double?, endOdometerKm: Double?, durationMillis: Long): Boolean =
-        isTrivialKm(distanceKm(startOdometerKm, endOdometerKm), durationMillis)
-
-    /** [isTrivial] 과 같은 기준. 거리를 이미 구했을 때 쓴다 (트립 미터로 구한 거리 포함). */
     fun isTrivialKm(km: Double?, durationMillis: Long): Boolean {
         return if (km != null) {
             km < TRIVIAL_KM && durationMillis < TRIVIAL_WITH_DISTANCE_MS

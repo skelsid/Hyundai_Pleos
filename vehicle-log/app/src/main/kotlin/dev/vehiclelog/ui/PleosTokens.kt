@@ -55,7 +55,6 @@ internal object PleosTokens {
     // 상단바 (ivi_title, page_navigation)
     val BAR_HEIGHT = Dimen(s = 80, w = 66, wf = 84) // page_navigation/container_height
     val BAR_PADDING_START = Dimen(s = 40, w = 32, wf = 42) // page_navigation/padding_extralarge — 화면 좌우 여백으로도 쓴다
-    val BAR_PADDING_END = Dimen(s = 24, w = 22, wf = 20) // page_navigation/padding_large
     val BAR_APP_ICON = Dimen(s = 80, w = 66, wf = 84) // page_navigation/title/app_icon/container_square
     val BAR_APP_ICON_RADIUS = Dimen(s = 20, w = 17, wf = 22) // page_navigation/title/app_icon/radius_top_left
     val BAR_APP_ICON_GAP = Dimen(s = 16, w = 14, wf = 17) // page_navigation/gap_medium — menu_group: 앱 아이콘과 제목 사이

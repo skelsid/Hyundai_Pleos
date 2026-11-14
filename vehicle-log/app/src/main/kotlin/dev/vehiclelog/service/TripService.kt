@@ -134,12 +134,12 @@ class TripService : Service() {
             if (destroyed) return@readTires
             val tires = TireCheck.evaluate(reading)
             val now = System.currentTimeMillis()
-            TireStatus.save(this, TireCheck.summary(tires), now)
+            DepartureStatus.save(this, TireCheck.summary(tires), now)
             AppLog.info("tire.checked", "measured" to tires.measured, "low" to tires.low, "uneven" to tires.uneven)
             signals.readFluids { fluids ->
                 if (destroyed) return@readFluids
                 val departure = DepartureCheck.evaluate(fluids, point.energy)
-                TireStatus.saveDeparture(this, DepartureCheck.summary(departure))
+                DepartureStatus.saveDeparture(this, DepartureCheck.summary(departure))
                 AppLog.info(
                     "departure.checked",
                     "fluids" to departure.measuredFluids, "low" to departure.lowFluids, "critical" to departure.criticalFluids,

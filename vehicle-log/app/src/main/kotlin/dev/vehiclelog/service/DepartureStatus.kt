@@ -3,7 +3,7 @@ package dev.vehiclelog.service
 import android.content.Context
 
 /** 마지막 출발 점검 결과(타이어 공기압, 소모품·연료). 화면 표시용 한 줄과 시각. */
-object TireStatus {
+object DepartureStatus {
     private const val PREFS = "tire_status"
     private const val KEY_SUMMARY = "summary"
     private const val KEY_TIME = "time"

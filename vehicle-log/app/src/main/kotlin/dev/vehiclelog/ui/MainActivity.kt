@@ -17,7 +17,7 @@ import dev.vehiclelog.data.TripStore
 import dev.vehiclelog.service.Consent
 import dev.vehiclelog.service.ScreenAccess
 import dev.vehiclelog.service.Settings
-import dev.vehiclelog.service.TireStatus
+import dev.vehiclelog.service.DepartureStatus
 import dev.vehiclelog.service.TripService
 import dev.vehiclelog.service.WarningStatus
 import java.text.SimpleDateFormat
@@ -277,8 +277,8 @@ class MainActivity : Activity() {
             val store = TripStore.get(this)
             val count = store.tripCount()
             val unclassified = store.unclassifiedCount()
-            val tire = TireStatus.load(this)
-            val departure = TireStatus.loadDeparture(this)
+            val tire = DepartureStatus.load(this)
+            val departure = DepartureStatus.loadDeparture(this)
             val warning = WarningStatus.load(this)
             runOnUiThread {
                 val tireText = tire?.let { "${it.summary} (${TIME.format(Date(it.timeMillis))} 출발 시)" } ?: "아직 점검 전"

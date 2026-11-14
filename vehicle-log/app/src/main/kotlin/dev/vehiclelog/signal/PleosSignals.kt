@@ -365,7 +365,7 @@ class PleosSignals(context: Context) : VehicleSignals {
         runCatching { navi.release() }
     }
 
-    /** 거리·위치·주소 조회가 모두 끝나거나 시간이 다 되면 한 번만 콜백한다. */
+    /** 계기판 거리·트립 미터·위치·주소·연료(배터리) 조회가 모두 끝나거나 시간이 다 되면 한 번만 콜백한다. */
     private inner class PointReading(private val callback: (TripPoint) -> Unit) {
         private var odometerDone = false
         private var locationDone = false
