@@ -87,11 +87,25 @@ class MailMessageTest {
 
     @Test
     fun test_encodeWord_surrogatePairAtBoundary_notSplit() {
-        // 44바이트 뒤에 4바이트 글자가 오면 그 글자는 통째로 다음 덩어리로 간다
-        val text = "가".repeat(14) + "ab" + "🚗" + "끝"
+        // 38바이트 뒤에 4바이트 글자가 오면 그 글자는 통째로 다음 덩어리로 간다
+        val text = "가".repeat(12) + "ab" + "🚗" + "끝"
         val encoded = MailMessage.encodeWord(text)
         assertEquals(2, encoded.split(" ").size)
         assertEquals(text, decodeWords(encoded))
+    }
+
+    @Test
+    fun test_toMime_longKoreanSubject_foldedIntoLinesOf76OrLess() {
+        val subject = "[차량운행기록] 12가3456 운행기록표 2025년 11월, 12월, 2026년 1월, 2월, 3월"
+        val mime = message(subject = subject).toMime(Date(0), "B")
+        val headers = mime.substringBefore("\r\n\r\n").split("\r\n")
+        assertTrue(headers.all { it.length <= 76 })
+        // 접힌 줄(공백으로 시작)을 앞줄에 이어 붙이면 제목이 그대로 나온다
+        val start = headers.indexOfFirst { it.startsWith("Subject: ") }
+        val folded = headers.drop(start + 1).takeWhile { it.startsWith(" ") }
+        assertTrue(folded.isNotEmpty())
+        val unfolded = headers[start].removePrefix("Subject: ") + folded.joinToString("")
+        assertEquals(subject, decodeWords(unfolded))
     }
 
     @Test

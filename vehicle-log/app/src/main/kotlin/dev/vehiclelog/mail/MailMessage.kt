@@ -53,7 +53,9 @@ class MailMessage(
     private fun StringBuilder.header(name: String, value: String) {
         // 머리글에 줄바꿈이 끼면 다른 머리글을 끼워 넣을 수 있다 (사용자 입력이 들어가는 곳)
         require('\r' !in value && '\n' !in value) { "머리글에 줄바꿈이 있다: $name" }
-        append(name).append(": ").append(value).append(CRLF)
+        // 인코딩한 덩어리가 여럿이면 덩어리 사이에서 줄을 접는다 (RFC 2047 2절: 덩어리가 든 줄은 76자 이하).
+        // 접힌 줄은 공백으로 시작하고, 받는 쪽은 이어서 한 줄로 읽는다
+        append(name).append(": ").append(value.replace("?= =?", "?=$CRLF =?")).append(CRLF)
     }
 
     private fun StringBuilder.appendBase64(bytes: ByteArray) {
@@ -69,8 +71,9 @@ class MailMessage(
         const val CRLF = "\r\n"
         private const val LINE = 76
 
-        // 한 덩어리에 담는 UTF-8 바이트 수. base64 60자 + "=?UTF-8?B?"·"?=" 12자 = 72자로 75자 상한 안이다
-        private const val WORD_BYTES = 45
+        // 한 덩어리에 담는 UTF-8 바이트 수. base64 52자 + "=?UTF-8?B?"·"?=" 12자 = 64자로 75자 상한 안이고,
+        // 앞에 "Subject: "(9자)가 붙어도 한 줄 76자를 넘지 않는다
+        private const val WORD_BYTES = 39
 
         /**
          * ASCII 만 있으면 그대로, 아니면 =?UTF-8?B?...?= 로 감싼다.
