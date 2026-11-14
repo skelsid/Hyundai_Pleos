@@ -632,6 +632,49 @@ internal object Ui {
         return dialog
     }
 
+    /**
+     * 고르는 목록을 담은 팝업. 틀은 [popup] 과 같고, 설명 자리에 [content] 를 넣어 길면 스크롤한다.
+     * 아래에는 닫기 버튼 하나만 둔다. 항목을 골랐을 때 닫는 것은 부르는 쪽이 한다.
+     */
+    fun listPopup(activity: Activity, title: String, content: View, close: String): Dialog {
+        val colors = palette(activity)
+        val dialog = Dialog(activity)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        val frame = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            background = insideStroke(activity, colors.popupBackground, colors.dividerPrimary, activity.px(T.POPUP_BORDER), activity.px(T.POPUP_RADIUS))
+            val pad = activity.px(T.POPUP_PADDING)
+            setPadding(pad, pad, pad, pad)
+            addView(
+                TextView(activity).apply {
+                    text = title
+                    style(TITLE_LARGE_EXTRA_STRONG)
+                    setTextColor(colors.textPrimary)
+                    gravity = Gravity.CENTER
+                },
+                LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT),
+            )
+            // 목록이 화면보다 길어도 닫기 버튼이 밀려나지 않게 목록만 스크롤한다
+            addView(
+                ScrollView(activity).apply { addView(content, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)) },
+                LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f).apply { topMargin = activity.px(T.POPUP_GAP) },
+            )
+            addView(
+                button(activity, close) { dialog.dismiss() },
+                LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = activity.px(T.POPUP_SECTION_GAP) },
+            )
+        }
+        dialog.setContentView(frame)
+        dialog.window?.apply {
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setLayout(activity.px(T.POPUP_WIDTH), WRAP_CONTENT)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                attributes = attributes.apply { fitInsetsTypes = WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars() }
+            }
+        }
+        return dialog
+    }
+
     private fun rounded(context: Context, color: Int, radiusPx: Int) = GradientDrawable().apply {
         setColor(color)
         cornerRadius = radiusPx.toFloat()

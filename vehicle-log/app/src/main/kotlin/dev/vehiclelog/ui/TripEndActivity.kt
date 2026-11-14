@@ -1,6 +1,7 @@
 package dev.vehiclelog.ui
 
 import android.app.Activity
+import android.app.Dialog
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -22,6 +23,7 @@ import java.util.concurrent.Executors
 /**
  * 운행 종료 화면. 도착지를 확인하고 사용자와 업무용/비업무를 고른다. 출퇴근은 업무용이다.
  * 도착지는 자동으로 채운 값(내비 목적지, 없으면 주소)을 고치거나 이전 도착지 버튼으로 바꾼다.
+ * 사용자는 버튼을 누르면 뜨는 목록에서 고른다. 후보가 없어도 목록은 뜨고 맨 위에 [사용자 추가]가 있다.
  * 정차(P) 상태에서 뜨지만, 주행 중 다시 열려도 막히지 않게 distractionOptimized 로 둔다.
  * distractionOptimized 화면은 주행 중 제한을 스스로 지켜야 한다(Pleos driving-restriction-development-guide):
  * 키보드 제한(NO_KEYBOARD)이면 도착지 칸을 Read Only 로 두고, 주행 중에는 설정 화면(사용자 등록)으로 가는 버튼을 끈다.
@@ -36,7 +38,12 @@ class TripEndActivity : Activity() {
     private var trip: Trip? = null
     private var selectedUserId: Long? = null
     private var placeInput: EditText? = null
-    private var registerButton: Button? = null
+    private var userButton: Button? = null
+    private var userPopup: Dialog? = null
+    private var users: List<User> = emptyList()
+
+    // 사용자 추가 화면으로 가기 전의 후보. 돌아왔을 때 새로 생긴 사람을 바로 골라 주려고 기억한다
+    private var idsBeforeAdding: Set<Long>? = null
     private var rules = DrivingRules.PARKED
     private lateinit var drivingState: DrivingState
 
@@ -47,7 +54,6 @@ class TripEndActivity : Activity() {
 
     // 월별 기록표에서 이미 분류한 운행을 고치러 들어온 경우
     private var editing = false
-    private val userButtons = mutableMapOf<Long, Pair<Button, User>>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -134,14 +140,17 @@ class TripEndActivity : Activity() {
         kept = null
         val placeText = keep?.place ?: target.endPlace.orEmpty()
         trip = target
+        this.users = users
         val userIds = users.map { it.id }
-        selectedUserId = keep?.userId?.takeIf { it in userIds } ?: if (editing) {
+        val added = idsBeforeAdding?.let { before -> userIds.filter { it !in before } }.orEmpty()
+        idsBeforeAdding = null
+        // 방금 추가한 사람이 한 명이면 그 사람을 고른 것으로 본다
+        selectedUserId = added.singleOrNull() ?: keep?.userId?.takeIf { it in userIds } ?: if (editing) {
             target.userId?.takeIf { it in userIds }
         } else {
             TripText.defaultUserId(userIds, lastUserId)
         }
-        userButtons.clear()
-        registerButton = null
+        userPopup?.dismiss()
         root.removeAllViews()
 
         val title = when {
@@ -179,19 +188,9 @@ class TripEndActivity : Activity() {
         }
 
         root.addView(Ui.body(this, "사용자"))
-        if (users.isEmpty()) {
-            root.addView(Ui.body(this, "등록된 사용자가 없습니다. 사용자 없이 저장하거나 먼저 등록해 주세요."))
-            val register = Ui.button(this, "사용자 등록") { startActivity(Intent(this, UsersActivity::class.java)) }
-            registerButton = register
-            root.addView(register)
-        } else {
-            for (user in users) {
-                val button = Ui.toggle(this, "") { selectUser(user.id) }
-                userButtons[user.id] = button to user
-                root.addView(button)
-            }
-            refreshUserButtons()
-        }
+        // 후보가 없어도 같은 버튼을 두고, 누르면 맨 위에 [사용자 추가]가 있는 목록이 뜬다
+        userButton = Ui.button(this, "") { showUserList() }.also(root::addView)
+        refreshUserButton()
 
         // 고치러 들어왔으면 지금 분류를, 아니면 같은 도착지의 이전 분류를 강조한다. 둘 다 없으면 업무용
         val suggested = if (editing) target.nonBusiness else TripText.suggestNonBusiness(history)
@@ -213,26 +212,50 @@ class TripEndActivity : Activity() {
     private fun applyRules(next: DrivingRules) {
         rules = next
         placeInput?.let { Ui.setTypingAllowed(it, next.keyboardAllowed, PLACE_HINT, PLACE_BLOCKED_HINT) }
-        // 사용자 관리는 distractionOptimized 가 아니라 주행 중 시스템이 막는다. 눌러도 막힌 화면만 보이므로 끈다
-        registerButton?.isEnabled = !next.restricted
+        // 목록 안의 [사용자 추가]는 열 때의 주행 상태로 그린다. 상태가 바뀌면 닫아서 다시 열게 한다
+        if (userPopup?.isShowing == true) userPopup?.dismiss()
     }
 
-    private fun selectUser(userId: Long) {
-        selectedUserId = userId
-        refreshUserButtons()
-    }
+    private fun label(user: User) = user.name + (user.department?.let { " ($it)" } ?: "")
 
-    private fun refreshUserButtons() {
-        for ((id, entry) in userButtons) {
-            val (button, user) = entry
-            button.isSelected = id == selectedUserId
-            button.text = user.name + (user.department?.let { " ($it)" } ?: "")
+    private fun refreshUserButton() {
+        val selected = users.firstOrNull { it.id == selectedUserId }
+        userButton?.text = when {
+            selected != null -> "${label(selected)}  ▾"
+            users.isEmpty() -> "등록된 사용자 없음  ▾"
+            else -> "사용자를 골라 주세요  ▾"
         }
+    }
+
+    /** 사용자 목록. 맨 위는 항상 [사용자 추가]이고, 후보가 없어도 뜬다. */
+    private fun showUserList() {
+        if (isFinishing) return
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val add = Ui.button(this, if (rules.restricted) "＋ 사용자 추가 (주행 중에는 쓸 수 없음)" else "＋ 사용자 추가", filled = true) {
+            userPopup?.dismiss()
+            idsBeforeAdding = users.map { it.id }.toSet()
+            startActivity(Intent(this, UsersActivity::class.java))
+        }
+        // 사용자 관리는 distractionOptimized 가 아니라 주행 중 시스템이 막는다. 눌러도 막힌 화면만 보이므로 끈다
+        add.isEnabled = !rules.restricted
+        list.addView(add)
+        if (users.isEmpty()) list.addView(Ui.body(this, "등록된 사용자가 없습니다. 사용자 없이 저장할 수도 있습니다."))
+        for (user in users) {
+            val item = Ui.toggle(this, label(user)) {
+                selectedUserId = user.id
+                refreshUserButton()
+                userPopup?.dismiss()
+            }
+            item.isSelected = user.id == selectedUserId
+            list.addView(item)
+        }
+        userPopup?.dismiss()
+        userPopup = Ui.listPopup(this, "사용자", list, close = "닫기").also { it.show() }
     }
 
     private fun classify(nonBusiness: Boolean) {
         val target = trip ?: return
-        if (userButtons.isNotEmpty() && selectedUserId == null) {
+        if (users.isNotEmpty() && selectedUserId == null) {
             Toast.makeText(this, "사용자를 골라 주세요", Toast.LENGTH_SHORT).show()
             return
         }
@@ -253,6 +276,7 @@ class TripEndActivity : Activity() {
     }
 
     override fun onDestroy() {
+        userPopup?.dismiss()
         drivingState.stop()
         io.shutdown()
         super.onDestroy()
