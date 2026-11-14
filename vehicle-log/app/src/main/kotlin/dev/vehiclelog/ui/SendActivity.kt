@@ -32,13 +32,20 @@ class SendActivity : Activity() {
 
     private val monthButtons = mutableMapOf<YearMonth, Pair<Button, Int>>()
     private val selected = mutableSetOf<YearMonth>()
-    private var sending = false
+
+    // 보내기가 끝났을 때 지금 떠 있는 화면이 결과를 받는다 ([Sending])
+    private val onSendingChange: () -> Unit = {
+        status.text = Sending.result
+        refresh()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // 화면을 다시 만들 때는 고르던 상태를, 처음에는 월별 화면에서 보던 달을 고른 채로 연다
         val initial = savedInstanceState?.getIntArray(STATE_SELECTED) ?: intent.getIntArrayExtra(EXTRA_MONTHS)
         initial?.let { selected += decode(it) }
+        // 새로 연 화면에는 지난번 결과를 보이지 않는다 (다시 만들어진 화면은 이어서 보인다)
+        if (savedInstanceState == null && !Sending.active) Sending.result = ""
 
         val root = Ui.column(this)
         root.addView(Ui.header(this, Ui.title(this, "운행기록표 내보내기")))
@@ -59,6 +66,8 @@ class SendActivity : Activity() {
         super.onStart()
         // 관리 화면이다. 앱을 떠났다 돌아와 잠겼으면 닫는다
         AdminSession.requireUnlocked(this)
+        Sending.onChange = onSendingChange
+        status.text = Sending.result
     }
 
     override fun onResume() {
@@ -96,7 +105,7 @@ class SendActivity : Activity() {
     }
 
     private fun toggle(month: YearMonth) {
-        if (sending) return
+        if (Sending.active) return
         if (!selected.remove(month)) selected += month
         refresh()
     }
@@ -106,10 +115,10 @@ class SendActivity : Activity() {
             val (button, count) = entry
             button.isSelected = month in selected
             button.text = "${month.year}년 ${month.month}월 · 운행 ${count}건"
-            button.isEnabled = !sending
+            button.isEnabled = !Sending.active
         }
-        sendButton.text = if (sending) "보내는 중…" else "관리자에게 보내기 (${selected.size}개월)"
-        sendButton.isEnabled = !sending && selected.isNotEmpty()
+        sendButton.text = if (Sending.active) "보내는 중…" else "관리자에게 보내기 (${selected.size}개월)"
+        sendButton.isEnabled = !Sending.active && selected.isNotEmpty()
     }
 
     private fun send() {
@@ -119,12 +128,14 @@ class SendActivity : Activity() {
             return
         }
         val months = selected.toList()
-        if (months.isEmpty() || sending) return
-        sending = true
+        if (months.isEmpty() || Sending.active) return
+        Sending.active = true
+        Sending.result = ""
         status.text = ""
         refresh()
+        val app = applicationContext
         io.execute {
-            val message = runCatching { LogbookMail.send(this, months, admin, zone) }.fold(
+            val message = runCatching { LogbookMail.send(app, months, admin, zone) }.fold(
                 onSuccess = { "${admin.email} 로 ${months.size}개월치를 보냈습니다." },
                 onFailure = {
                     AppLog.error("mail.failed", it, "kind" to (it as? MailException)?.kind)
@@ -132,9 +143,10 @@ class SendActivity : Activity() {
                 },
             )
             runOnUiThread {
-                sending = false
-                status.text = message
-                refresh()
+                Sending.active = false
+                Sending.result = message
+                // 그 사이 화면이 다시 만들어졌으면(밤/낮 전환) 새 화면이 받는다
+                Sending.onChange?.invoke()
             }
         }
     }
@@ -148,6 +160,7 @@ class SendActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (Sending.onChange === onSendingChange) Sending.onChange = null
         io.shutdown()
         super.onDestroy()
     }
@@ -166,4 +179,14 @@ class SendActivity : Activity() {
 
         private fun decode(values: IntArray): List<YearMonth> = values.map { YearMonth(it / 100, it % 100) }
     }
+}
+
+/**
+ * 보내는 중인지와 마지막 결과 문장. 밤/낮 전환으로 화면이 다시 만들어져도 "보내는 중"이 이어져
+ * 같은 메일을 두 번 보내지 않게 화면 밖에 둔다. 메인 스레드에서만 만진다.
+ */
+private object Sending {
+    var active = false
+    var result = ""
+    var onChange: (() -> Unit)? = null
 }

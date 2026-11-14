@@ -102,6 +102,8 @@ class TripEndActivity : Activity() {
     }
 
     private fun load(tripId: Long) {
+        // 저장 결과가 화면을 닫은 뒤에 도착하면 끝난 실행기에 일을 넣지 않는다
+        if (isDestroyed) return
         io.execute {
             val store = TripStore.get(this)
             val target = if (editing) {

@@ -55,6 +55,8 @@ class UsersActivity : Activity() {
     }
 
     private fun reload() {
+        // 추가·삭제 결과가 화면을 닫은 뒤에 도착하면 끝난 실행기에 일을 넣지 않는다
+        if (isDestroyed) return
         io.execute {
             val users = TripStore.get(this).activeUsers()
             runOnUiThread { render(users) }

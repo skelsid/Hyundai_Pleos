@@ -270,6 +270,8 @@ class MainActivity : Activity() {
     }
 
     private fun refresh() {
+        // 화면이 없어진 뒤에 불리면(닫히는 동의 창의 리스너 등) 끝난 실행기에 일을 넣지 않는다
+        if (isDestroyed) return
         val replay = Settings.replayMode(this)
         io.execute {
             val store = TripStore.get(this)
