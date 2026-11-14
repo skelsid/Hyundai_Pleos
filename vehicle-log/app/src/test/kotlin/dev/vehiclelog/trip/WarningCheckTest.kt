@@ -28,6 +28,26 @@ class WarningCheckTest {
     }
 
     @Test
+    fun test_spoken_tireAlreadyAnnounced_dropsTpmsOnly() {
+        val active = listOf("TPMS", "ENGINE", "LOW_FUEL")
+        assertEquals(listOf("엔진", "연료 부족"), WarningCheck.spoken(active, tireAnnounced = true, energyAnnounced = false))
+    }
+
+    @Test
+    fun test_spoken_energyAlreadyAnnounced_dropsFuelAndBattery() {
+        val active = listOf("LOW_FUEL", "LOW_EV_BATTERY", "TPMS")
+        assertEquals(listOf("타이어 공기압"), WarningCheck.spoken(active, tireAnnounced = false, energyAnnounced = true))
+        // 남는 것이 없으면 경고등 안내를 하지 않는다
+        assertNull(WarningCheck.message(WarningCheck.spoken(listOf("LOW_FUEL"), tireAnnounced = false, energyAnnounced = true)))
+    }
+
+    @Test
+    fun test_spoken_nothingAnnounced_sameAsImportant() {
+        val active = listOf("TPMS", "SEAT_BELT", "LOW_FUEL")
+        assertEquals(WarningCheck.important(active), WarningCheck.spoken(active, tireAnnounced = false, energyAnnounced = false))
+    }
+
+    @Test
     fun test_summary_notReceived_saysSo() {
         assertEquals("경고등 값 미수신", WarningCheck.summary(null))
     }

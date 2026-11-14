@@ -27,10 +27,25 @@ object WarningCheck {
         "LOW_EV_BATTERY" to "구동 배터리 부족",
     )
 
+    /** 타이어 공기압 안내([TireCheck])와 같은 뜻인 경고등 */
+    private val TIRE_TYPES = setOf("TPMS")
+
+    /** 연료(배터리) 부족 안내([DepartureCheck])와 같은 뜻인 경고등 */
+    private val ENERGY_TYPES = setOf("LOW_FUEL", "LOW_EV_BATTERY")
+
     /** 켜진 경고등 이름들에서 알릴 것만 안내 순서대로 고른다. */
     fun important(activeTypes: Collection<String>): List<String> {
         val active = activeTypes.toSet()
         return LABELS.filterKeys { it in active }.values.toList()
+    }
+
+    /**
+     * 음성으로 알릴 경고등. 출발 점검이 같은 내용을 이미 말했으면 뺀다 — 타이어 안내를 했으면 타이어 공기압 경고등,
+     * 연료(배터리) 부족 안내를 했으면 연료·구동 배터리 부족 경고등. 화면 요약([important])에는 그대로 둔다.
+     */
+    fun spoken(activeTypes: Collection<String>, tireAnnounced: Boolean, energyAnnounced: Boolean): List<String> {
+        val covered = (if (tireAnnounced) TIRE_TYPES else emptySet()) + (if (energyAnnounced) ENERGY_TYPES else emptySet())
+        return important(activeTypes.filterNot { it in covered })
     }
 
     /** 음성 안내 문구. 알릴 경고등이 없으면 null (안내하지 않음). */

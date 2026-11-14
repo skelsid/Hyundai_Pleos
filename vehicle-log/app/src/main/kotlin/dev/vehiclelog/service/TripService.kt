@@ -151,7 +151,11 @@ class TripService : Service() {
                     WarningStatus.save(this, WarningCheck.summary(labels), System.currentTimeMillis())
                     AppLog.info("warning.checked", "received" to (active != null), "active" to active?.size, "important" to labels)
                     val tireMessage = TireCheck.message(tires)
-                    val parts = listOfNotNull(tireMessage, DepartureCheck.message(departure), labels?.let(WarningCheck::message))
+                    // 타이어·연료 부족을 이미 말했으면 같은 뜻의 경고등을 한 번 더 말하지 않는다 (화면 요약에는 남긴다)
+                    val spoken = active?.let {
+                        WarningCheck.spoken(it, tireAnnounced = tireMessage != null, energyAnnounced = departure.lowEnergy != null)
+                    }
+                    val parts = listOfNotNull(tireMessage, DepartureCheck.message(departure), spoken?.let(WarningCheck::message))
                     if (parts.isNotEmpty()) {
                         // 타이어 문구는 "타이어를 확인해 주세요." 로 시작한다. 그것만 없으면 앞에 출발 점검임을 밝힌다
                         val lead = if (tireMessage == null) "출발 점검 결과입니다. " else ""
