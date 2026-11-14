@@ -84,7 +84,7 @@ class MonthlyActivity : Activity() {
         io.execute {
             val store = TripStore.get(this)
             val trips = store.endedTripsBetween(start, end)
-            val names = store.userNames()
+            val names = store.userLabels()
             runOnUiThread {
                 // 빠르게 달을 넘기면 늦게 온 결과는 버린다
                 if (shownYear == year && shownMonth == month) render(trips, names)

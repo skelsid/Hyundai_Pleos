@@ -33,7 +33,15 @@ data class Trip(
 }
 
 /** 운행 종료 때 고를 수 있는 사용자 후보. 삭제하면 active=0 으로 숨긴다 (지난 운행이 참조하므로). */
-data class User(val id: Long, val name: String, val department: String?)
+data class User(val id: Long, val name: String, val department: String?) {
+    /** 화면에 보여 주는 이름. 부서가 있으면 괄호로 붙여 같은 이름을 구분한다. */
+    val label: String get() = department?.trim()?.takeIf { it.isNotEmpty() }?.let { "$name ($it)" } ?: name
+
+    /** 이름과 부서가 모두 같으면 같은 사람으로 본다 (대소문자·앞뒤 공백 무시). 부서가 다르면 다른 사람이다. */
+    fun isSamePerson(otherName: String, otherDepartment: String?): Boolean =
+        name.trim().equals(otherName.trim(), ignoreCase = true) &&
+            department.orEmpty().trim().equals(otherDepartment.orEmpty().trim(), ignoreCase = true)
+}
 
 /**
  * 운행·사용자 후보를 차량 내부 SQLite 에 저장한다. 외부 서버로 보내지 않는다.
@@ -215,6 +223,12 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
     fun userNames(): Map<Long, String> =
         readableDatabase.rawQuery("SELECT id, name FROM users", null).use { c ->
             buildMap { while (c.moveToNext()) put(c.getLong(0), c.getString(1)) }
+        }
+
+    /** 빠진 후보까지 포함한 모든 사용자의 화면용 이름(부서 포함). 이름이 같은 사람을 목록에서 구분할 때 쓴다. */
+    fun userLabels(): Map<Long, String> =
+        readableDatabase.rawQuery("SELECT id, name, department FROM users", null).use { c ->
+            buildMap { while (c.moveToNext()) put(c.getLong(0), User(c.getLong(0), c.getString(1), c.stringOrNull("department")).label) }
         }
 
     fun tripCount(): Int =

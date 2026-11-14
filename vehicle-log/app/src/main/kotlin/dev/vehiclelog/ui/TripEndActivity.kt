@@ -217,12 +217,11 @@ class TripEndActivity : Activity() {
         if (userPopup?.isShowing == true) userPopup?.dismiss()
     }
 
-    private fun label(user: User) = user.name + (user.department?.let { " ($it)" } ?: "")
 
     private fun refreshUserButton() {
         val selected = users.firstOrNull { it.id == selectedUserId }
         userButton?.text = when {
-            selected != null -> "${label(selected)}  ▾"
+            selected != null -> "${selected.label}  ▾"
             users.isEmpty() -> "등록된 사용자 없음  ▾"
             else -> "사용자를 골라 주세요  ▾"
         }
@@ -242,7 +241,7 @@ class TripEndActivity : Activity() {
         list.addView(add)
         if (users.isEmpty()) list.addView(Ui.body(this, "등록된 사용자가 없습니다. 사용자 없이 저장할 수도 있습니다."))
         for (user in users) {
-            val item = Ui.toggle(this, label(user)) {
+            val item = Ui.toggle(this, user.label) {
                 selectedUserId = user.id
                 refreshUserButton()
                 userPopup?.dismiss()

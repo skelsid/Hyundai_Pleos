@@ -38,7 +38,13 @@ class UsersActivity : Activity() {
                 }
                 val departmentText = department.text.toString().trim().ifEmpty { null }
                 io.execute {
-                    val id = TripStore.get(this).addUser(nameText, departmentText)
+                    val store = TripStore.get(this)
+                    // 이름·부서가 모두 같은 사람이 이미 있으면 기록표에서 구분할 수 없어 받지 않는다
+                    if (store.activeUsers().any { it.isSamePerson(nameText, departmentText) }) {
+                        runOnUiThread { Toast.makeText(this, "같은 이름·부서의 사용자가 이미 있습니다", Toast.LENGTH_SHORT).show() }
+                        return@execute
+                    }
+                    val id = store.addUser(nameText, departmentText)
                     AppLog.info("user.added", "id" to id)
                     runOnUiThread {
                         name.text.clear()
@@ -68,8 +74,7 @@ class UsersActivity : Activity() {
         list.removeAllViews()
         if (users.isEmpty()) list.addView(Ui.body(this, "등록된 사용자가 없습니다."))
         for (user in users) {
-            val label = user.name + (user.department?.let { " ($it)" } ?: "")
-            val remove = Ui.button(this, "삭제", medium = true) { confirmRemove(user, label) }
+            val remove = Ui.button(this, "삭제", medium = true) { confirmRemove(user, user.label) }
             list.addView(Ui.listItem(this, user.name, user.department, suffix = remove))
         }
     }
