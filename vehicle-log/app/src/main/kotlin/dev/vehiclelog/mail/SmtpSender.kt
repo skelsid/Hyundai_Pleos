@@ -112,7 +112,7 @@ class SmtpSender(
 
         /** 줄 맨 앞의 '.' 은 메시지 끝 표시와 헷갈리지 않게 하나 더 붙인다 (RFC 5321 4.5.2). */
         fun dotStuff(mime: String): String =
-            mime.split("\r\n").joinToString("\r\n") { if (it.startsWith(".")) ".$it" else it }
+            (if (mime.startsWith(".")) ".$mime" else mime).replace("\r\n.", "\r\n..")
 
         private fun tlsSocket(host: String, port: Int): Socket {
             val socket = SSLSocketFactory.getDefault().createSocket() as javax.net.ssl.SSLSocket

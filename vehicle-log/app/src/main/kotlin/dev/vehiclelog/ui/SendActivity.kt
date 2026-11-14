@@ -19,7 +19,7 @@ import java.util.concurrent.Executors
 
 /**
  * 내보내기. 운행이 있는 달 중 보낼 달을 고르면 달마다 운행기록표 엑셀을 만들어 관리자 메일로 보낸다.
- * 입력 칸 없이 버튼만 있어 distractionOptimized 로 둔다.
+ * 메일 발송은 정차 중에 할 일이라 주행 중에는 열지 않는다 (distractionOptimized 아님).
  */
 class SendActivity : Activity() {
 

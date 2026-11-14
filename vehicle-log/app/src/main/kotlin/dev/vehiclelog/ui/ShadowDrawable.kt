@@ -20,7 +20,8 @@ internal class ShadowDrawable(private val cornerRadiusPx: Float, private val sha
 
     /** offsetYPx: 아래로 민 거리, blurPx: Figma 흐림 값, color: 그림자 색(ARGB). */
     class Shadow(val offsetYPx: Float, blurPx: Float, val color: Int) {
-        val maskRadius: Float = ((blurPx / 2f - SIGMA_BIAS) / SIGMA_PER_RADIUS).coerceAtLeast(MIN_RADIUS)
+        // 그릴 때마다 만들지 않게 한 번만 만든다
+        val mask = BlurMaskFilter(((blurPx / 2f - SIGMA_BIAS) / SIGMA_PER_RADIUS).coerceAtLeast(MIN_RADIUS), BlurMaskFilter.Blur.NORMAL)
     }
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -37,7 +38,7 @@ internal class ShadowDrawable(private val cornerRadiusPx: Float, private val sha
         canvas.clipOutPath(shape)
         for (shadow in shadows) {
             paint.color = shadow.color
-            paint.maskFilter = BlurMaskFilter(shadow.maskRadius, BlurMaskFilter.Blur.NORMAL)
+            paint.maskFilter = shadow.mask
             rect.set(bounds)
             rect.offset(0f, shadow.offsetYPx)
             canvas.drawRoundRect(rect, cornerRadiusPx, cornerRadiusPx, paint)

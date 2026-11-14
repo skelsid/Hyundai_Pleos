@@ -88,38 +88,40 @@ object LogbookXlsx {
         (millis + zone.getOffset(millis)) / MILLIS_PER_DAY + EXCEL_EPOCH_OFFSET_DAYS
 
     private fun fillSheet(template: String, header: LogHeader, rows: List<LogRow>, offset: Int, zone: TimeZone): String {
-        var xml = template
-        xml = setText(xml, "C5", header.corporation)
-        xml = setText(xml, "I5", header.period)
-        xml = setText(xml, "C6", header.plate)
-        xml = setText(xml, "G6", header.model)
-        xml = setText(xml, "K6", header.department)
-        xml = setText(xml, "C7", header.vin)
+        val edits = CellEdits()
+        edits.text("C5", header.corporation)
+        edits.text("I5", header.period)
+        edits.text("C6", header.plate)
+        edits.text("G6", header.model)
+        edits.text("K6", header.department)
+        edits.text("C7", header.vin)
         var sheetTotal = 0.0
         var anyDistance = false
         for (i in 0 until ROWS_PER_SHEET) {
             val r = FIRST_ROW + i
-            xml = setNumber(xml, "A$r", (offset + i + 1).toDouble())
+            edits.number("A$r", (offset + i + 1).toDouble())
             val row = rows.getOrNull(i) ?: continue
-            xml = setNumber(xml, "B$r", Math.floor(excelSerial(row.startMillis, zone)))
-            xml = setText(xml, "C$r", row.user)
-            xml = setNumber(xml, "D$r", excelSerial(row.startMillis, zone))
-            xml = setNumber(xml, "E$r", row.endMillis?.let { excelSerial(it, zone) })
-            xml = setText(xml, "F$r", row.startPlace)
-            xml = setText(xml, "G$r", row.endPlace)
-            xml = setNumber(xml, "I$r", row.startKm)
-            xml = setNumber(xml, "J$r", row.endKm)
-            xml = setBoolean(xml, "L$r", row.nonBusiness == true)
-            xml = setText(xml, "N$r", note(row))
+            val start = excelSerial(row.startMillis, zone)
+            edits.number("B$r", Math.floor(start))
+            edits.text("C$r", row.user)
+            edits.number("D$r", start)
+            edits.number("E$r", row.endMillis?.let { excelSerial(it, zone) })
+            edits.text("F$r", row.startPlace)
+            edits.text("G$r", row.endPlace)
+            edits.number("I$r", row.startKm)
+            edits.number("J$r", row.endKm)
+            edits.boolean("L$r", row.nonBusiness == true)
+            edits.text("N$r", note(row))
             val km = TripMath.distanceKm(row.startKm, row.endKm)
-            xml = setFormulaCache(xml, "K$r", km, invalid = row.startKm != null && row.endKm != null && km == null)
+            edits.formulaCache("K$r", km, invalid = row.startKm != null && row.endKm != null && km == null)
             if (km != null) {
                 sheetTotal += km
                 anyDistance = true
             }
         }
         // 엑셀은 열 때 다시 계산하지만, 미리보기 앱은 캐시값만 보여 주므로 합계도 채워 둔다
-        return setFormulaCache(xml, "K$TOTAL_ROW", sheetTotal.takeIf { anyDistance }, invalid = false)
+        edits.formulaCache("K$TOTAL_ROW", sheetTotal.takeIf { anyDistance }, invalid = false)
+        return edits.applyTo(template)
     }
 
     private fun note(row: LogRow): String? =
@@ -130,42 +132,58 @@ object LogbookXlsx {
 
     // ── 셀 편집 ────────────────────────────────────────────────
 
-    private fun cellRegex(ref: String) = Regex("<c r=\"$ref\"([^>]*?)(/>|>(.*?)</c>)", RegexOption.DOT_MATCHES_ALL)
+    private val CELL = Regex("<c r=\"([A-Z]+\\d+)\"([^>]*?)(/>|>(.*?)</c>)", RegexOption.DOT_MATCHES_ALL)
+    private val STYLE = Regex(" s=\"\\d+\"")
+    private val FORMULA = Regex("<f[^>]*/>|<f[^>]*>.*?</f>", RegexOption.DOT_MATCHES_ALL)
 
-    private fun styleOf(attrs: String): String = Regex(" s=\"\\d+\"").find(attrs)?.value.orEmpty()
+    /**
+     * 바꿀 셀을 모아 두었다가 시트 XML 을 한 번만 훑어 바꾼다.
+     * (셀마다 시트 전체를 찾고 복사하면 한 장에 270번쯤 되풀이된다.)
+     */
+    private class CellEdits {
+        private val builders = HashMap<String, (style: String, inner: String) -> String>()
 
-    private fun replaceCell(xml: String, ref: String, build: (style: String, inner: String) -> String): String {
-        val match = cellRegex(ref).find(xml) ?: error("양식에 $ref 셀이 없다")
-        val replacement = build(styleOf(match.groupValues[1]), match.groupValues[3])
-        return xml.replaceRange(match.range, replacement)
-    }
-
-    private fun setText(xml: String, ref: String, value: String?): String {
-        if (value.isNullOrBlank()) return xml
-        return replaceCell(xml, ref) { style, _ ->
-            "<c r=\"$ref\"$style t=\"inlineStr\"><is><t xml:space=\"preserve\">${escape(value)}</t></is></c>"
-        }
-    }
-
-    private fun setNumber(xml: String, ref: String, value: Double?): String {
-        if (value == null) return xml
-        return replaceCell(xml, ref) { style, _ -> "<c r=\"$ref\"$style><v>${plain(value)}</v></c>" }
-    }
-
-    private fun setBoolean(xml: String, ref: String, value: Boolean): String =
-        replaceCell(xml, ref) { style, _ -> "<c r=\"$ref\"$style t=\"b\"><v>${if (value) 1 else 0}</v></c>" }
-
-    /** 수식은 그대로 두고 캐시값만 바꾼다. 양식 수식과 같은 규칙: 거리 없으면 "", 줄어들면 "확인". */
-    private fun setFormulaCache(xml: String, ref: String, value: Double?, invalid: Boolean): String =
-        replaceCell(xml, ref) { style, inner ->
-            val formula = Regex("<f[^>]*/>|<f[^>]*>.*?</f>", RegexOption.DOT_MATCHES_ALL).find(inner)?.value
-                ?: error("$ref 에 수식이 없다")
-            when {
-                invalid -> "<c r=\"$ref\"$style t=\"str\">$formula<v>확인</v></c>"
-                value == null -> "<c r=\"$ref\"$style t=\"str\">$formula<v></v></c>"
-                else -> "<c r=\"$ref\"$style>$formula<v>${plain(value)}</v></c>"
+        fun text(ref: String, value: String?) {
+            if (value.isNullOrBlank()) return
+            builders[ref] = { style, _ ->
+                "<c r=\"$ref\"$style t=\"inlineStr\"><is><t xml:space=\"preserve\">${escape(value)}</t></is></c>"
             }
         }
+
+        fun number(ref: String, value: Double?) {
+            if (value == null) return
+            builders[ref] = { style, _ -> "<c r=\"$ref\"$style><v>${plain(value)}</v></c>" }
+        }
+
+        fun boolean(ref: String, value: Boolean) {
+            builders[ref] = { style, _ -> "<c r=\"$ref\"$style t=\"b\"><v>${if (value) 1 else 0}</v></c>" }
+        }
+
+        /** 수식은 그대로 두고 캐시값만 바꾼다. 양식 수식과 같은 규칙: 거리 없으면 "", 줄어들면 "확인". */
+        fun formulaCache(ref: String, value: Double?, invalid: Boolean) {
+            builders[ref] = { style, inner ->
+                val formula = FORMULA.find(inner)?.value ?: error("$ref 에 수식이 없다")
+                when {
+                    invalid -> "<c r=\"$ref\"$style t=\"str\">$formula<v>확인</v></c>"
+                    value == null -> "<c r=\"$ref\"$style t=\"str\">$formula<v></v></c>"
+                    else -> "<c r=\"$ref\"$style>$formula<v>${plain(value)}</v></c>"
+                }
+            }
+        }
+
+        fun applyTo(xml: String): String {
+            val found = HashSet<String>()
+            val result = CELL.replace(xml) { match ->
+                val ref = match.groupValues[1]
+                val build = builders[ref] ?: return@replace match.value
+                found += ref
+                build(STYLE.find(match.groupValues[2])?.value.orEmpty(), match.groupValues[4])
+            }
+            val missing = builders.keys - found
+            check(missing.isEmpty()) { "양식에 ${missing.sorted().first()} 셀이 없다" }
+            return result
+        }
+    }
 
     private fun plain(value: Double): String = BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
 

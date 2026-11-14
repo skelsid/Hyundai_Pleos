@@ -17,7 +17,7 @@ import java.util.concurrent.Executors
 
 /**
  * 월별 운행기록표. 합계·업무사용비율과 운행 목록을 보여 주고, 운행을 누르면 분류를 고칠 수 있다.
- * 읽기 위주라 주행 중에도 열 수 있게 distractionOptimized 로 둔다.
+ * 목록이 길어 주행 중에는 열지 않는다 (distractionOptimized 아님 — 시스템이 막는다).
  */
 class MonthlyActivity : Activity() {
 

@@ -197,7 +197,6 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
     fun tripCount(): Int =
         readableDatabase.rawQuery("SELECT COUNT(*) FROM trips", null).use { it.moveToFirst(); it.getInt(0) }
 
-    /** 최근 도착지. 같은 이름은 한 번만, 마지막으로 간 순서대로. 운행 종료 화면에서 골라 쓴다. */
     /** 같은 도착지로 끝난 다른 운행들의 최근 분류(true = 비업무). 미분류는 뺀다. */
     fun recentClassifications(endPlace: String, excludeTripId: Long, limit: Int): List<Boolean> =
         readableDatabase.rawQuery(
@@ -206,6 +205,7 @@ class TripStore private constructor(context: Context) : SQLiteOpenHelper(context
             arrayOf(endPlace, excludeTripId.toString()),
         ).use { c -> buildList { while (c.moveToNext()) add(c.getLong(0) != 0L) } }
 
+    /** 최근 도착지. 같은 이름은 한 번만, 마지막으로 간 순서대로. 운행 종료 화면에서 골라 쓴다. */
     fun recentEndPlaces(limit: Int): List<String> =
         readableDatabase.rawQuery(
             "SELECT end_place FROM trips WHERE end_place IS NOT NULL AND TRIM(end_place) != '' " +
