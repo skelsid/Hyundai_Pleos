@@ -173,9 +173,13 @@ class TripService : Service() {
             return
         }
         openTripId = null
-        val start = store.trip(id)
-        val km = start?.let { TripMath.tripDistanceKm(it.startOdometerKm, point.odometerKm, it.startTripMeterKm, point.tripMeterKm) }
-        if (start != null && TripMath.isTrivialKm(km, point.timeMillis - start.startTime)) {
+        val start = store.trip(id) ?: run {
+            // 운행 중에 기록이 지워졌다 (동의 철회 뒤 다시 동의한 경우 등). 끝낼 운행이 없으니 종료 화면도 띄우지 않는다
+            AppLog.warn("trip.end.missing", "id" to id)
+            return
+        }
+        val km = TripMath.tripDistanceKm(start.startOdometerKm, point.odometerKm, start.startTripMeterKm, point.tripMeterKm)
+        if (TripMath.isTrivialKm(km, point.timeMillis - start.startTime)) {
             // 주차 자리 옮기기 같은 짧은 움직임은 묻지 않고 버린다
             store.deleteTrip(id)
             AppLog.info("trip.discarded", "id" to id, "durationMs" to (point.timeMillis - start.startTime))
