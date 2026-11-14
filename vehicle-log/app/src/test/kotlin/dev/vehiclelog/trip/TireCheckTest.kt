@@ -23,7 +23,20 @@ class TireCheckTest {
     fun test_evaluate_oneWheelTenPercentLower_flagsUneven() {
         val result = TireCheck.evaluate(reading(36.0, 36.0, 30.0, 36.0))
         assertEquals(listOf(Wheel.LEFT_REAR), result.uneven)
-        assertEquals("타이어를 확인해 주세요. 뒤 왼쪽 공기압이 다른 바퀴와 차이가 납니다.", TireCheck.message(result))
+        assertEquals("타이어를 확인해 주세요. 뒤 왼쪽 공기압이 다른 바퀴보다 낮습니다.", TireCheck.message(result))
+    }
+
+    @Test
+    fun test_evaluate_oneWheelHigher_notFlagged() {
+        // 기획서: 한 바퀴만 다른 바퀴보다 낮을 때 알린다. 높은 쪽은 알리지 않는다
+        val result = TireCheck.evaluate(reading(36.0, 36.0, 42.0, 36.0))
+        assertTrue(result.ok)
+        assertNull(TireCheck.message(result))
+    }
+
+    @Test
+    fun test_evaluate_justUnderTenPercentLower_notFlagged() {
+        assertTrue(TireCheck.evaluate(reading(36.0, 36.0, 32.5, 36.0)).ok)
     }
 
     @Test

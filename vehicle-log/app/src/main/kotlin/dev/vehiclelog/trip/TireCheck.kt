@@ -1,6 +1,5 @@
 package dev.vehiclelog.trip
 
-import kotlin.math.abs
 
 enum class Wheel(val label: String) {
     LEFT_FRONT("앞 왼쪽"),
@@ -15,7 +14,7 @@ data class TireReading(val pressure: Map<Wheel, Double?>, val lowLimit: Map<Whee
 data class TireResult(
     /** 차량 저압 기준보다 낮은 바퀴 */
     val low: List<Wheel>,
-    /** 다른 바퀴들과 차이가 큰 바퀴 */
+    /** 다른 바퀴들보다 눈에 띄게 낮은 바퀴 */
     val uneven: List<Wheel>,
     /** 값을 받은 바퀴 수 */
     val measured: Int,
@@ -25,7 +24,7 @@ data class TireResult(
 
 /**
  * 네 바퀴 공기압 비교. 단위(psi·kPa)를 SDK 문서에서 확인하지 못해 절대값 대신 비율로 비교한다:
- * 네 바퀴 중앙값에서 [UNEVEN_RATIO] 이상 벗어난 바퀴를 '차이 큼'으로 본다.
+ * 네 바퀴 중앙값보다 [UNEVEN_RATIO] 이상 낮은 바퀴를 '다른 바퀴보다 낮음'으로 본다 (높은 쪽은 알리지 않는다).
  * 차량이 주는 저압 기준값이 있으면 그보다 낮은 바퀴는 '낮음'으로 따로 알린다.
  */
 object TireCheck {
@@ -40,7 +39,7 @@ object TireCheck {
             emptyList()
         } else {
             val median = median(values.map { it.second })
-            values.filter { (_, p) -> abs(p - median) / median >= UNEVEN_RATIO }.map { it.first }
+            values.filter { (_, p) -> (median - p) / median >= UNEVEN_RATIO }.map { it.first }
         }
         return TireResult(low, uneven, values.size)
     }
@@ -51,7 +50,7 @@ object TireCheck {
         val parts = mutableListOf<String>()
         if (result.low.isNotEmpty()) parts += "${names(result.low)} 공기압이 낮습니다"
         val unevenOnly = result.uneven - result.low.toSet()
-        if (unevenOnly.isNotEmpty()) parts += "${names(unevenOnly)} 공기압이 다른 바퀴와 차이가 납니다"
+        if (unevenOnly.isNotEmpty()) parts += "${names(unevenOnly)} 공기압이 다른 바퀴보다 낮습니다"
         return "타이어를 확인해 주세요. " + parts.joinToString(". ") + "."
     }
 
