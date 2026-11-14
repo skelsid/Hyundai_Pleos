@@ -98,7 +98,6 @@ class TripService : Service() {
                     signals.onTripStarted()
                     runIo { recordStart(point) }
                     checkDeparture(point)
-                    checkWarnings()
                 }
                 TripEvent.ENDED -> runIo { recordEnd(point) }
             }
@@ -126,19 +125,8 @@ class TripService : Service() {
         AppLog.info("trip.started", "id" to id, "odometerKm" to point.odometerKm)
     }
 
-    /** 출발할 때 계기판 경고등을 읽어 정비·안전 관련 경고등이 켜져 있으면 음성으로 알린다. */
-    private fun checkWarnings() {
-        signals.readWarnings { active ->
-            if (destroyed) return@readWarnings
-            val labels = active?.let(WarningCheck::important)
-            WarningStatus.save(this, WarningCheck.summary(labels), System.currentTimeMillis())
-            AppLog.info("warning.checked", "received" to (active != null), "active" to active?.size, "important" to labels)
-            labels?.let(WarningCheck::message)?.let(announcer::speak)
-        }
-    }
-
     /**
-     * 출발 점검: 네 바퀴 공기압, 엔진오일·브레이크액·변속기오일, 연료(배터리) 잔량.
+     * 출발 점검: 네 바퀴 공기압, 엔진오일·브레이크액·변속기오일, 연료(배터리) 잔량, 계기판 경고등(정비·안전 관련만).
      * 이상이 있으면 한 번에 이어서 말한다 (안내가 여러 번 끊겨 나오지 않게).
      */
     private fun checkDeparture(point: TripPoint) {
@@ -157,13 +145,18 @@ class TripService : Service() {
                     "fluids" to departure.measuredFluids, "low" to departure.lowFluids, "critical" to departure.criticalFluids,
                     "energy" to point.energy?.percent,
                 )
-                val tireMessage = TireCheck.message(tires)
-                val departureMessage = DepartureCheck.message(departure)
-                val parts = listOfNotNull(tireMessage, departureMessage)
-                if (parts.isNotEmpty()) {
-                    // 타이어 문구는 "타이어를 확인해 주세요." 로 시작한다. 그것만 없으면 앞에 출발 점검임을 밝힌다
-                    val lead = if (tireMessage == null) "출발 점검 결과입니다. " else ""
-                    announcer.speak(lead + parts.joinToString(" "))
+                signals.readWarnings { active ->
+                    if (destroyed) return@readWarnings
+                    val labels = active?.let(WarningCheck::important)
+                    WarningStatus.save(this, WarningCheck.summary(labels), System.currentTimeMillis())
+                    AppLog.info("warning.checked", "received" to (active != null), "active" to active?.size, "important" to labels)
+                    val tireMessage = TireCheck.message(tires)
+                    val parts = listOfNotNull(tireMessage, DepartureCheck.message(departure), labels?.let(WarningCheck::message))
+                    if (parts.isNotEmpty()) {
+                        // 타이어 문구는 "타이어를 확인해 주세요." 로 시작한다. 그것만 없으면 앞에 출발 점검임을 밝힌다
+                        val lead = if (tireMessage == null) "출발 점검 결과입니다. " else ""
+                        announcer.speak(lead + parts.joinToString(" "))
+                    }
                 }
             }
         }
