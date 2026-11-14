@@ -68,6 +68,38 @@ class MailMessageTest {
         assertEquals("Hyundai Vehicle Log", MailMessage.encodeWord("Hyundai Vehicle Log"))
     }
 
+    /** encodeWord 결과를 받는 쪽처럼 풀어 본다: 덩어리마다 base64 를 풀어 이어 붙인다. */
+    private fun decodeWords(encoded: String): String =
+        encoded.split(" ").joinToString("") { word ->
+            assertTrue(word, word.startsWith("=?UTF-8?B?") && word.endsWith("?="))
+            String(Base64.getDecoder().decode(word.removePrefix("=?UTF-8?B?").removeSuffix("?=")), Charsets.UTF_8)
+        }
+
+    @Test
+    fun test_encodeWord_longKoreanSubject_splitsIntoWordsOf75OrLess() {
+        val subject = "[차량운행기록] 12가3456 운행기록표 2025년 11월, 12월, 2026년 1월, 2월, 3월, 4월, 5월, 6월, 7월, 8월, 9월, 10월"
+        val encoded = MailMessage.encodeWord(subject)
+        val words = encoded.split(" ")
+        assertTrue(words.size > 1)
+        assertTrue(words.all { it.length <= 75 })
+        assertEquals(subject, decodeWords(encoded))
+    }
+
+    @Test
+    fun test_encodeWord_surrogatePairAtBoundary_notSplit() {
+        // 44바이트 뒤에 4바이트 글자가 오면 그 글자는 통째로 다음 덩어리로 간다
+        val text = "가".repeat(14) + "ab" + "🚗" + "끝"
+        val encoded = MailMessage.encodeWord(text)
+        assertEquals(2, encoded.split(" ").size)
+        assertEquals(text, decodeWords(encoded))
+    }
+
+    @Test
+    fun test_encodeWord_shortKorean_singleWord() {
+        assertEquals("운행기록표", decodeWords(MailMessage.encodeWord("운행기록표")))
+        assertFalse(MailMessage.encodeWord("운행기록표").contains(" "))
+    }
+
     @Test
     fun test_isValid_addresses() {
         assertTrue(MailAddress.isValid("admin@example.com"))

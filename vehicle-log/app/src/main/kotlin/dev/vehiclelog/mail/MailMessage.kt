@@ -69,13 +69,34 @@ class MailMessage(
         const val CRLF = "\r\n"
         private const val LINE = 76
 
-        /** ASCII 만 있으면 그대로, 아니면 =?UTF-8?B?...?= 로 감싼다. */
-        fun encodeWord(text: String): String =
-            if (text.all { it.code in 0x20..0x7E }) {
-                text
-            } else {
-                "=?UTF-8?B?" + Base64.getEncoder().encodeToString(text.toByteArray(Charsets.UTF_8)) + "?="
+        // 한 덩어리에 담는 UTF-8 바이트 수. base64 60자 + "=?UTF-8?B?"·"?=" 12자 = 72자로 75자 상한 안이다
+        private const val WORD_BYTES = 45
+
+        /**
+         * ASCII 만 있으면 그대로, 아니면 =?UTF-8?B?...?= 로 감싼다.
+         * 한 덩어리(encoded-word)는 75자를 넘지 못하므로(RFC 2047 2절) 글자 경계에서 나눠 공백으로 잇는다.
+         * 받는 쪽은 이어진 덩어리 사이의 공백을 버리고 붙여 읽는다.
+         */
+        fun encodeWord(text: String): String {
+            if (text.all { it.code in 0x20..0x7E }) return text
+            val words = mutableListOf<String>()
+            var chunk = ByteArray(0)
+            var i = 0
+            while (i < text.length) {
+                val next = text.offsetByCodePoints(i, 1)
+                val bytes = text.substring(i, next).toByteArray(Charsets.UTF_8)
+                if (chunk.size + bytes.size > WORD_BYTES) {
+                    words += word(chunk)
+                    chunk = ByteArray(0)
+                }
+                chunk += bytes
+                i = next
             }
+            words += word(chunk)
+            return words.joinToString(" ")
+        }
+
+        private fun word(bytes: ByteArray): String = "=?UTF-8?B?" + Base64.getEncoder().encodeToString(bytes) + "?="
     }
 }
 
